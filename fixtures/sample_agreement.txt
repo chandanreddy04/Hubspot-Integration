@@ -1,0 +1,30 @@
+MASTER SERVICES AGREEMENT
+
+This Master Services Agreement ("Agreement") is entered into as of
+March 3, 2026 (the "Effective Date") by and between Rally, Inc. ("Provider")
+and Foundry Robotics, Inc. ("Customer").
+
+Customer: Foundry Robotics, Inc.
+Billing Contact: ap@foundryrobotics.ai
+
+1. SERVICES
+Provider will deliver implementation and integration services as described
+in Exhibit A, together with ongoing platform access for the term of this
+Agreement.
+
+2. FEES
+The total contract value is $28,500.00, payable in accordance with the
+following schedule. Payment terms: Net 30 from the date of invoice.
+All fees are quoted in USD.
+
+3. TERM
+This Agreement commences on the Effective Date and continues for twelve
+(12) months unless terminated earlier in accordance with Section 7.
+
+4. SIGNATURES
+This Agreement has been duly executed by the authorized representatives
+of both parties as of the Effective Date.
+
+Rally, Inc.                          Foundry Robotics, Inc.
+/s/ Jordan Lee                       /s/ Priya Nair
+Jordan Lee, VP Sales                 Priya Nair, Head of Operations
