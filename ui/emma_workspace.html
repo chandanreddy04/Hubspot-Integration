@@ -2211,6 +2211,7 @@ function renderApprovals(){
    ===================================================================== */
 function renderCash(view){
   const body = document.getElementById('cash-body');
+  const liveTag = p => p.real ? ` <span class="pill green dot" style="font-size:9.5px;margin-left:6px">Live</span>` : '';
   if(view==='matched'){
     body.innerHTML = `<table class="t"><thead><tr>
       <th>QB payment</th><th>Customer</th><th class="num">Amount</th><th>Applied to</th><th class="num">Confidence</th><th>When</th><th style="text-align:right">Actions</th>
@@ -2218,7 +2219,7 @@ function renderCash(view){
       const overTag = p.over ? ` <span class="pill amber dot" style="margin-left:6px">overpayment +${money(p.over)}</span>` : '';
       const overAction = p.over ? `<button class="csv-btn" onclick="event.stopPropagation();openCreditNoteModal({customer:'${esc(p.c).replace(/'/g,"\\'")}',inv:'${p.inv}',amt:'${money(p.over)}'})">Issue credit note</button>` : '';
       return `<tr onclick="openPaymentDrawer('matched','${p.qb}')">
-        <td class="mono">${p.qb}</td><td>${p.c}${overTag}</td><td class="amt-cell green">${money(p.amt)}</td>
+        <td class="mono">${p.qb}</td><td>${p.c}${liveTag(p)}${overTag}</td><td class="amt-cell green">${money(p.amt)}</td>
         <td class="mono">${p.inv}</td><td class="num">${p.conf.toFixed(2)}</td><td style="color:var(--text-3)">${p.when}</td>
         <td style="text-align:right">${overAction}</td>
       </tr>`;
@@ -2227,15 +2228,15 @@ function renderCash(view){
     body.innerHTML = `<table class="t"><thead><tr>
       <th>QB payment</th><th>Customer / memo</th><th class="num">Amount</th><th>Suggest match (top 3)</th><th class="num">Best conf</th><th>When</th>
     </tr></thead><tbody>${CASH_UNMATCHED.map(p=>`<tr onclick="openPaymentDrawer('unmatched','${p.qb}')">
-      <td class="mono">${p.qb}</td><td>${p.c}</td><td class="amt-cell red">${money(p.amt)}</td>
-      <td><div class="suggest">${p.cands.map(x=>`<span class="s">${x}</span>`).join('')}</div></td>
+      <td class="mono">${p.qb}</td><td>${p.c}${liveTag(p)}</td><td class="amt-cell red">${money(p.amt)}</td>
+      <td><div class="suggest">${p.cands.length ? p.cands.map(x=>`<span class="s">${x}</span>`).join('') : (p.real ? '<span style="color:var(--text-3);font-size:11.5px">No automatic matching built yet</span>' : '')}</div></td>
       <td class="num">${p.conf.toFixed(2)}</td><td style="color:var(--text-3)">${p.when}</td>
-    </tr>`).join('')}</tbody></table>`;
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No unmatched payments</td></tr>'}</tbody></table>`;
   } else {
     body.innerHTML = `<table class="t"><thead><tr>
       <th>QB payment</th><th>Customer</th><th class="num">Applied</th><th class="num">Invoice total</th><th>Applied to</th><th class="num">Confidence</th><th>When</th>
     </tr></thead><tbody>${CASH_PARTIAL.map(p=>`<tr onclick="openPaymentDrawer('partial','${p.qb}')">
-      <td class="mono">${p.qb}</td><td>${p.c}</td>
+      <td class="mono">${p.qb}</td><td>${p.c}${liveTag(p)}</td>
       <td class="amt-cell amber">${money(p.amt)}</td>
       <td class="amt-cell">${money(p.due)}</td>
       <td class="mono">${p.inv}</td><td class="num">${p.conf.toFixed(2)}</td><td style="color:var(--text-3)">${p.when}</td>
@@ -2914,14 +2915,15 @@ function openPaymentDrawer(kind, qb){
       <div class="dfield"><div class="l">Received</div><div class="v">${p.when}</div></div>
       <div class="dfield"><div class="l">Confidence</div><div class="v">${p.conf.toFixed(2)}</div></div>
     </div>
-    ${kind==='unmatched' ? `
+    ${kind==='unmatched' ? (p.real ? `
+      <div class="warn-box">No linked invoice in QuickBooks for this payment, and no automatic matching has been built yet — this is an honest gap, not a low-confidence guess.</div>` : `
       <div class="warn-box">Fuzzy match confidence <b>${p.conf.toFixed(2)}</b> is below the 0.85 threshold. Emma held this for review.</div>
       <div class="dsec"><h4>Top 3 candidate invoices</h4>
         ${p.cands.map((c,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:12.5px">
           <div style="flex:1"><b>${c}</b></div>
           <button class="btn sm primary" onclick="closeDrawer();toast('success','Applied ${p.qb} · candidate ${i+1}')">Apply</button>
         </div>`).join('')}
-      </div>` : `
+      </div>`) : `
       <div class="dsec"><h4>Applied to invoice</h4>
         <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:var(--mono);font-size:12px">${p.inv}</div>
       </div>
@@ -2937,11 +2939,17 @@ function reconciliationHTML(kind, p){
   const conf = p.conf || 0;
   const pct = Math.round(conf * 100);
   const bar = conf >= 0.90 ? 'g' : conf >= 0.70 ? 'a' : 'r';
-  const matchedBy = kind === 'matched'
-    ? {label:'Memo + amount', pill:'green'}
-    : kind === 'partial'
-      ? {label:'Memo reference', pill:'amber'}
-      : {label:'Held for review', pill:'red'};
+  const matchedBy = p.real
+    ? (kind === 'matched'
+        ? {label:'QuickBooks LinkedTxn', pill:'green'}
+        : kind === 'partial'
+          ? {label:'QuickBooks balance', pill:'amber'}
+          : {label:'No matching built yet', pill:'slate'})
+    : kind === 'matched'
+      ? {label:'Memo + amount', pill:'green'}
+      : kind === 'partial'
+        ? {label:'Memo reference', pill:'amber'}
+        : {label:'Held for review', pill:'red'};
   const invLine = kind === 'unmatched'
     ? `<div class="recon-row"><span class="k">Invoice</span><span class="v" style="color:var(--text-3)">Awaiting match</span></div>`
     : `<div class="recon-row"><span class="k">Invoice #</span><span class="v mono">${p.inv}</span></div>${p.due?`<div class="recon-row"><span class="k">Due</span><span class="v">${money(p.due)}</span></div>`:''}`;
@@ -4530,14 +4538,15 @@ renderApprovalMatrix();
 applyClient();
 
 /* =====================================================================
-   LIVE DATA — real HubSpot deals, fetched from server.py's /api/deals.
-   Scoped to Deal Pipeline / contracts only, by design: Invoice pipeline,
-   Cash Application, Collections, Incidents, Audit, renewals, credit
-   notes, and writeoffs stay as the existing demo data above, since
-   those workflows aren't built yet. Real deals are marked with
-   real:true; dealSource()/dealReviewStatus()/contractSummary() all
-   already handle them gracefully via their existing fallback logic,
-   so no changes were needed there.
+   LIVE DATA — real HubSpot deals + real QuickBooks cash application,
+   fetched from server.py's /api/deals and /api/cash. Everything else
+   (Invoice pipeline, Collections, Incidents, Audit, renewals, credit
+   notes, writeoffs) stays as the existing demo data, since those
+   workflows aren't built yet. Real rows are marked real:true and get
+   a "Live" badge; the rendering functions already handle them
+   correctly via existing fallback logic (dealSource, dealReviewStatus,
+   contractSummary) or via small real-aware branches added alongside
+   this (renderCash's liveTag, reconciliationHTML's matchedBy).
    ===================================================================== */
 async function loadRealDeals(refresh){
   try{
@@ -4558,7 +4567,35 @@ async function loadRealDeals(refresh){
     toast('warn', 'Could not reach the live deals API — is server.py running? (' + e.message + ')');
   }
 }
+
+async function loadRealCash(refresh){
+  try{
+    const res = await fetch('/api/cash' + (refresh ? '?refresh=1' : ''));
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const payload = await res.json();
+    if(payload.error){
+      toast('warn', 'Live QuickBooks cash data unavailable: ' + payload.error);
+      return;
+    }
+    for(const [arr] of [[CASH_MATCHED],[CASH_UNMATCHED],[CASH_PARTIAL]]){
+      for(let i = arr.length - 1; i >= 0; i--){ if(arr[i].real) arr.splice(i, 1); }
+    }
+    CASH_MATCHED.unshift(...(payload.matched || []));
+    CASH_UNMATCHED.unshift(...(payload.unmatched || []));
+    CASH_PARTIAL.unshift(...(payload.partial || []));
+    const activeTab = document.querySelector('#cash-tabs .subtab.active');
+    renderCash(activeTab ? activeTab.dataset.cashtab : 'matched');
+    const total = (payload.matched||[]).length + (payload.unmatched||[]).length + (payload.partial||[]).length;
+    if(total){
+      toast('success', total + ' real QuickBooks payment/invoice record(s) loaded');
+    }
+  }catch(e){
+    toast('warn', 'Could not reach the live cash API — is server.py running? (' + e.message + ')');
+  }
+}
+
 loadRealDeals(false);
+loadRealCash(false);
 </script>
 
 <!-- ================== ASK EMMA CHAT ================== -->

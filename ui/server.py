@@ -37,6 +37,7 @@ from pdf_text import extract_text
 UI_DIR = Path(__file__).parent
 
 _cache: dict = {"deals": None, "computed_at": 0.0, "error": None}
+_cash_cache: dict = {"cash": None, "computed_at": 0.0, "error": None}
 _CACHE_TTL_SECONDS = 300  # re-fetch at most every 5 minutes even without ?refresh=1
 
 
@@ -142,6 +143,86 @@ def get_deals(force_refresh: bool = False) -> tuple[list[dict], str | None]:
     return _cache["deals"], _cache["error"]
 
 
+def _fmt_when(iso_date: str) -> str:
+    try:
+        return datetime.fromisoformat(iso_date).strftime("%b %d · %H:%M")
+    except (ValueError, TypeError):
+        return iso_date or "—"
+
+
+def compute_cash() -> dict:
+    """Real QuickBooks payment/invoice data for the Cash Application tab.
+
+    No fuzzy matching is invented here -- "matched" means QuickBooks' own
+    Payment.LinkedTxn already ties that payment to an invoice (an
+    authoritative fact from QBO, not a guess we're making), so confidence
+    is honestly 1.0. "Unmatched" means no LinkedTxn exists; since no
+    matching algorithm has been built, confidence is honestly 0.0 and the
+    candidate-invoice list is genuinely empty rather than fabricated.
+    "Partial" is derived directly from real invoice Balance vs TotalAmt.
+    """
+    from integrations.qbo import QboClient
+
+    settings = load_settings()
+    if settings.qbo_mode != "live":
+        raise RuntimeError("QBO_MODE is not 'live' -- set it in .env to fetch real cash data")
+
+    client = QboClient(settings)
+    payments, _ = client.list_payments_since(None)
+    invoices = client.list_invoices(limit=50)
+
+    matched, unmatched = [], []
+    for p in payments:
+        row = {
+            "qb": p.payment_id,
+            "c": p.customer_name or "(no customer name on payment)",
+            "amt": round(p.total_amount, 2),
+            "when": _fmt_when(p.txn_date),
+            "real": True,
+        }
+        if p.linked_invoice_numbers:
+            row["inv"] = ", ".join(p.linked_invoice_numbers)
+            row["conf"] = 1.0  # QBO's own LinkedTxn -- a fact, not a fuzzy guess
+            matched.append(row)
+        else:
+            row["inv"] = "—"
+            row["conf"] = 0.0  # honestly zero: no matching algorithm exists yet
+            row["cands"] = []  # not fabricated -- genuinely no suggestions to offer
+            unmatched.append(row)
+
+    partial = []
+    for inv in invoices:
+        total = float(inv.get("TotalAmt") or 0)
+        balance = float(inv.get("Balance") or 0)
+        if 0 < balance < total:
+            partial.append({
+                "qb": f"QBO-Inv-{inv.get('Id')}",  # an invoice reference, not a payment ID -- QBO's query API doesn't return a payment ID per partially-paid invoice
+                "c": inv.get("CustomerRef", {}).get("name", "—"),
+                "amt": round(total - balance, 2),
+                "due": round(total, 2),
+                "inv": inv.get("DocNumber", "—"),
+                "conf": 1.0,  # derived directly from real Balance vs TotalAmt, not a guess
+                "when": "—",  # list_invoices doesn't carry a payment date
+                "real": True,
+            })
+
+    return {"matched": matched, "unmatched": unmatched, "partial": partial}
+
+
+def get_cash(force_refresh: bool = False) -> tuple[dict | None, str | None]:
+    stale = time.time() - _cash_cache["computed_at"] > _CACHE_TTL_SECONDS
+    if force_refresh or _cash_cache["cash"] is None or stale:
+        try:
+            _cash_cache["cash"] = compute_cash()
+            _cash_cache["error"] = None
+        except Exception as exc:
+            _cash_cache["error"] = str(exc)
+            if _cash_cache["cash"] is None:
+                _cash_cache["cash"] = {"matched": [], "unmatched": [], "partial": []}
+        _cash_cache["computed_at"] = time.time()
+    return _cash_cache["cash"], _cash_cache["error"]
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "EmmaUI/0.1"
 
@@ -164,6 +245,12 @@ class Handler(BaseHTTPRequestHandler):
             force = parse_qs(parsed.query).get("refresh", ["0"])[0] == "1"
             deals, error = get_deals(force_refresh=force)
             self._send_json({"deals": deals, "error": error, "computed_at": _cache["computed_at"]})
+            return
+
+        if path == "/api/cash":
+            force = parse_qs(parsed.query).get("refresh", ["0"])[0] == "1"
+            cash, error = get_cash(force_refresh=force)
+            self._send_json({**cash, "error": error, "computed_at": _cash_cache["computed_at"]})
             return
 
         if path == "/":
