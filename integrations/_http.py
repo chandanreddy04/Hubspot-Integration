@@ -46,6 +46,7 @@ def request(
     *,
     headers: dict | None = None,
     json_body: dict | None = None,
+    form_body: dict | None = None,
     timeout: int = 30,
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
     retry: bool = True,
@@ -56,6 +57,9 @@ def request(
     if json_body is not None:
         payload = json.dumps(json_body).encode("utf-8")
         headers.setdefault("Content-Type", "application/json")
+    elif form_body is not None:
+        payload = urllib.parse.urlencode(form_body).encode("utf-8")
+        headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
 
     headers.setdefault("Accept", "application/json")
     # urllib's default User-Agent ("Python-urllib/3.x") gets flagged as a bot

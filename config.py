@@ -37,6 +37,13 @@ class Settings:
     llm_model: str = "claude-sonnet-5"
     groq_api_key: str | None = None
     groq_model: str = "openai/gpt-oss-20b"
+    qbo_mode: str = "mock"  # "mock" | "live" — mock is the safe default
+    qbo_base_url: str = "https://sandbox-quickbooks.api.intuit.com"
+    qbo_realm_id: str | None = None
+    qbo_client_id: str | None = None
+    qbo_client_secret: str | None = None
+    qbo_refresh_token: str | None = None
+    qbo_access_token: str | None = None
 
 
 def load_settings() -> Settings:
@@ -61,9 +68,27 @@ def load_settings() -> Settings:
         if provider == "groq" and not groq_key:
             raise RuntimeError("LLM_MODE=live with LLM_PROVIDER=groq but GROQ_API_KEY is not set")
 
+    qbo_mode = (_env("QBO_MODE", "mock") or "mock").lower()
+    qbo_realm_id = _env("QBO_REALM_ID")
+    qbo_client_id = _env("QBO_CLIENT_ID")
+    qbo_client_secret = _env("QBO_CLIENT_SECRET")
+    qbo_refresh_token = _env("QBO_REFRESH_TOKEN")
+    qbo_access_token = _env("QBO_ACCESS_TOKEN")
+    if qbo_mode == "live":
+        if not qbo_realm_id:
+            raise RuntimeError("QBO_MODE=live but QBO_REALM_ID is not set")
+        if not qbo_access_token and not (qbo_refresh_token and qbo_client_id and qbo_client_secret):
+            raise RuntimeError(
+                "QBO_MODE=live needs either QBO_ACCESS_TOKEN, or "
+                "QBO_REFRESH_TOKEN + QBO_CLIENT_ID + QBO_CLIENT_SECRET"
+            )
+
     return Settings(
         hubspot_token=token, hubspot_mode=mode,
         llm_mode=llm_mode, llm_provider=provider,
         anthropic_api_key=anthropic_key, llm_model=_env("LLM_MODEL", "claude-sonnet-5"),
         groq_api_key=groq_key, groq_model=_env("GROQ_MODEL", "openai/gpt-oss-20b"),
+        qbo_mode=qbo_mode, qbo_base_url=_env("QBO_BASE_URL", "https://sandbox-quickbooks.api.intuit.com"),
+        qbo_realm_id=qbo_realm_id, qbo_client_id=qbo_client_id, qbo_client_secret=qbo_client_secret,
+        qbo_refresh_token=qbo_refresh_token, qbo_access_token=qbo_access_token,
     )
