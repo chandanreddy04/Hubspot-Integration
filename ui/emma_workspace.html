@@ -1,0 +1,2845 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emma · Revenue Cycle Coworker — Lumina Activate</title>
+<style>
+:root{
+ --bg:#f5f5f6;--surface:#fff;--surface-2:#fafafb;--border:#e8e8ea;--border-strong:#d9d9dd;
+ --text:#111114;--text-2:#4a4a55;--text-3:#8a8a94;
+ --purple:#7c5cfc;--purple-deep:#5A3ABF;--purple-soft:#f3f0ff;--purple-mid:#ede8ff;
+ --green:#16a34a;--green-bg:#dcfce7;--amber:#d97706;--amber-bg:#fef3c7;
+ --orange:#ea580c;--orange-bg:#ffedd5;--red:#dc2626;--red-bg:#fee2e2;
+ --blue:#2563eb;--blue-bg:#dbeafe;--slate:#64748b;--slate-bg:#f1f5f9;
+ --shadow:0 1px 2px rgba(0,0,0,.04);
+ --shadow-lg:0 8px 24px rgba(0,0,0,.10);
+ --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font:13px/1.45 "Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:inherit;text-decoration:none}
+
+/* ========== 3-column layout ========== */
+.shell{display:grid;grid-template-columns:236px 260px 1fr;min-height:100vh}
+
+/* Primary sidebar: Lumina Activate (matches Activate reference) */
+.psb{background:#ffffff;border-right:1px solid var(--border);padding:0;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
+.psb .brand{padding:18px 18px 22px;display:flex;align-items:center;gap:9px}
+.psb .brand .mark{width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:var(--purple);font-size:14px;flex-shrink:0}
+.psb .brand .mark svg{width:24px;height:24px;display:block}
+.psb .brand .name{font-weight:700;font-size:16.5px;letter-spacing:-0.2px;color:#111;flex:1}
+.psb .brand .collapse{width:22px;height:22px;display:flex;align-items:center;justify-content:center;color:#9a9aa0;font-size:14px;cursor:pointer;border-radius:4px}
+.psb .brand .collapse:hover{background:#f5f5f6;color:var(--text)}
+.psb .grp{padding:10px 0 4px}
+.psb .grp .lbl{font-size:11px;color:#8a8a90;text-transform:uppercase;letter-spacing:.6px;font-weight:600;padding:10px 20px 6px}
+.psb .pn{display:flex;align-items:center;gap:8px;padding:9px 20px;color:#232A31;font-size:15px;font-weight:500;cursor:pointer;transition:.12s}
+.psb .pn:hover{background:#f5f5f6}
+.psb .pn.active{margin:0 12px;padding:9px 12px;background:#E8F5EA;color:#0f7a45;font-weight:600;border-radius:7px}
+.psb .pn.active:hover{background:#dcefdf}
+.psb .pn .newbadge{margin-left:auto;background:var(--purple);color:#fff;font-size:10px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;padding:2px 8px;border-radius:999px;line-height:1.4}
+.psb .sep{height:1px;background:var(--border);margin:12px 20px}
+.psb .pn.muted{color:#666;font-weight:500}
+.psb .psb-spacer{flex:1}
+
+/* Secondary sidebar: Emma views */
+.ssb{background:var(--surface);border-right:1px solid var(--border);padding:0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.ssb .back{padding:14px 16px 10px;color:var(--text-3);font-size:11.5px;cursor:pointer;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border)}
+.ssb .back:hover{color:var(--purple)}
+.ssb .prod{padding:14px 16px 12px;border-bottom:1px solid var(--border)}
+.ssb .prod .l{font-size:9.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.6px;font-weight:600;margin-bottom:6px}
+.ssb .prod .n{font-size:13px;font-weight:600;letter-spacing:-.1px}
+.ssb .prod .m{font-size:11px;color:var(--text-3);margin-top:2px}
+.ssb .vwlbl{font-size:9.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.6px;font-weight:600;padding:14px 16px 6px}
+.ssb .nav{display:flex;flex-direction:column}
+.ssb .ni{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;color:var(--text-2);font-size:13px;border-left:3px solid transparent;transition:.12s}
+.ssb .ni:hover{background:var(--purple-soft);color:var(--purple-deep)}
+.ssb .ni.active{background:var(--purple-soft);color:var(--purple-deep);font-weight:600;border-left-color:var(--purple)}
+.ssb .ni .av{width:22px;height:22px;border-radius:6px;background:var(--slate-bg);color:var(--text-2);font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ssb .ni.active .av{background:var(--purple);color:#fff}
+.ssb .ni .lb{flex:1;min-width:0}
+.ssb .ni .badge{font-size:10px;padding:1px 6px;border-radius:99px;font-weight:600;background:var(--red-bg);color:var(--red)}
+.ssb .foot{margin-top:auto;padding:14px 16px;border-top:1px solid var(--border);position:sticky;bottom:0;background:var(--surface)}
+.ssb .foot .btn{width:100%;justify-content:center}
+
+/* Main */
+.main{min-width:0;display:flex;flex-direction:column}
+.header{padding:22px 32px 18px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:16px}
+.header .h1{flex:1;min-width:0}
+.header .title{margin:0;font-size:26px;font-weight:700;letter-spacing:-0.3px}
+.header .subtitle{color:var(--text-2);font-size:13px;margin-top:4px}
+.header .right{color:var(--text-3);font-size:12px;display:flex;align-items:center;gap:8px}
+.header .right .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.6s infinite;display:inline-block}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.content{flex:1;padding:22px 32px 60px;max-width:1600px;width:100%}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:7px;border:1px solid var(--border-strong);background:#fff;color:var(--text);font-size:12.5px;font-weight:500;cursor:pointer;transition:.12s}
+.btn:hover{background:var(--bg)}
+.btn.primary{background:var(--purple);border-color:var(--purple);color:#fff}
+.btn.primary:hover{background:var(--purple-deep);border-color:var(--purple-deep)}
+.btn.success{background:var(--green);border-color:var(--green);color:#fff}
+.btn.success:hover{background:#0d8a3d}
+.btn.danger{background:var(--red);border-color:var(--red);color:#fff}
+.btn.danger:hover{background:#b91c1c}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.ghost:hover{background:var(--bg)}
+.btn.sm{padding:5px 9px;font-size:11.5px}
+
+/* Pills */
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:600}
+.pill.dot::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}
+.pill.green{background:var(--green-bg);color:#0d6b2c}
+.pill.amber{background:var(--amber-bg);color:#8a5a10}
+.pill.orange{background:var(--orange-bg);color:#9a3d0a}
+.pill.red{background:var(--red-bg);color:#8b0f0f}
+.pill.blue{background:var(--blue-bg);color:#1e40af}
+.pill.slate{background:var(--slate-bg);color:var(--slate)}
+.pill.purple{background:var(--purple-soft);color:var(--purple-deep)}
+
+/* KPI cards */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+.kpi .l{font-size:11.5px;color:var(--text-2);font-weight:500}
+.kpi .v{font-size:28px;font-weight:700;letter-spacing:-0.4px;margin-top:6px;line-height:1.05}
+.kpi .v.red{color:var(--red)}
+.kpi .meta{font-size:11.5px;color:var(--text-3);margin-top:6px;display:flex;align-items:center;gap:8px}
+.kpi .trend{display:inline-flex;padding:1px 7px;border-radius:99px;font-size:10.5px;font-weight:700}
+.kpi .trend.up-good{background:var(--green-bg);color:#0d6b2c}
+
+/* Sections/cards */
+.section{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow)}
+.section .sh{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.section .sh h3{margin:0;font-size:14px;font-weight:600}
+.section .sh .desc{font-size:12px;color:var(--text-3)}
+.section .sh .right{margin-left:auto;display:flex;gap:6px;align-items:center}
+.section .body{padding:16px 18px}
+.section .body.padless{padding:0}
+
+/* Excel-style tables */
+table.t{width:100%;border-collapse:collapse;font-size:12.5px}
+table.t thead th{background:var(--surface-2);text-align:left;padding:8px 12px;font-size:11px;color:var(--text-2);font-weight:700;border-bottom:1px solid var(--border-strong);border-right:1px solid var(--border);position:sticky;top:0;z-index:1}
+table.t thead th:last-child{border-right:0}
+table.t td{padding:0 12px;height:28px;border-bottom:1px solid var(--border);border-right:1px solid var(--border);vertical-align:middle}
+table.t td:last-child{border-right:0}
+table.t tbody tr:nth-child(even){background:#fafafb}
+table.t tbody tr:hover{background:var(--purple-soft);cursor:pointer}
+table.t .num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+table.t thead th.num{text-align:right}
+table.t .mono{font-family:var(--mono);font-size:11.5px}
+
+/* Sub-tabs */
+.subtabs{display:flex;gap:2px;padding:0 18px;border-bottom:1px solid var(--border);background:var(--surface)}
+.subtab{padding:11px 14px;border:0;background:transparent;color:var(--text-2);font-size:13px;font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:.12s;display:flex;align-items:center;gap:6px}
+.subtab:hover{color:var(--text)}
+.subtab.active{color:var(--purple-deep);border-bottom-color:var(--purple);font-weight:600}
+.subtab .cnt{font-size:10.5px;background:var(--slate-bg);color:var(--text-2);padding:1px 6px;border-radius:99px;font-weight:600}
+.subtab.active .cnt{background:var(--purple-soft);color:var(--purple-deep)}
+
+/* Screens */
+.screen{display:none}
+.screen.active{display:block}
+
+/* Invoicing schedule */
+.sch-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px}
+.sch-head .h1{flex:1;min-width:0}
+.sch-head .t{margin:0;font-size:20px;font-weight:700;letter-spacing:-0.2px}
+.sch-head .st{color:var(--text-2);font-size:12.5px;margin-top:3px}
+.sch-head .r{display:flex;gap:8px;align-items:center}
+.sch-seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;margin-bottom:14px}
+.sch-seg button{border:0;background:transparent;padding:6px 14px;font-size:12.5px;color:var(--text-2);font-weight:500;cursor:pointer;border-radius:6px;transition:.12s}
+.sch-seg button:hover{color:var(--text)}
+.sch-seg button.active{background:var(--surface);color:var(--purple-deep);font-weight:600;box-shadow:var(--shadow)}
+.sch-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;align-items:center}
+.sch-chips .lbl{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-right:2px}
+.sch-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:99px;font-size:12px;font-weight:500;border:1px solid var(--border-strong);background:#fff;cursor:pointer;color:var(--text-2);transition:.12s}
+.sch-chip:hover{background:var(--bg)}
+.sch-chip.active{background:var(--purple-soft);border-color:var(--purple);color:var(--purple-deep);font-weight:600}
+.sch-chip select{border:0;background:transparent;font:inherit;color:inherit;outline:0;cursor:pointer}
+
+/* Schedule KPI red */
+.kpi .v.warn-red{color:var(--red)}
+
+/* Row actions in schedule */
+.sch-actions{display:flex;gap:4px;justify-content:flex-end}
+.sch-actions .btn{padding:3px 8px;font-size:11px}
+
+/* Kanban */
+.kanban{display:grid;grid-auto-flow:column;grid-auto-columns:260px;gap:12px;overflow-x:auto;padding-bottom:8px}
+.kcol{background:var(--bg);border:1px solid var(--border);border-radius:10px;min-height:400px;display:flex;flex-direction:column}
+.kcol .kh{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;position:sticky;top:0;background:var(--bg);border-radius:10px 10px 0 0}
+.kcol .kh .cnt{font-size:10.5px;color:var(--text-3);background:var(--surface);border:1px solid var(--border);padding:1px 7px;border-radius:99px;font-weight:600}
+.kcol .kbody{padding:8px;display:flex;flex-direction:column;gap:8px;flex:1}
+.kcol.dragover{background:var(--purple-soft);border-color:var(--purple)}
+.kcard{background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:pointer;transition:.12s;box-shadow:var(--shadow)}
+.kcard:hover{border-color:var(--purple);transform:translateY(-1px)}
+.kcard.dragging{opacity:.45}
+.kcard .kt{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-3);margin-bottom:4px}
+.kcard .kt .id{font-family:var(--mono);font-size:10.5px}
+.kcard .cust{font-size:12.5px;font-weight:600;letter-spacing:-.1px}
+.kcard .kmeta{display:flex;align-items:center;justify-content:space-between;margin-top:6px;font-size:11px}
+.kcard .amt{font-family:var(--mono);font-weight:700}
+
+/* Morning brief */
+.brief{background:linear-gradient(135deg,var(--purple-soft) 0%,#fff 100%);border:1px solid var(--purple-mid);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+.brief h3{margin:0 0 4px;font-size:14px;font-weight:700;color:var(--purple-deep);display:flex;align-items:center;gap:8px}
+.brief h3 .av{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--purple),var(--purple-deep));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.brief .stamp{color:var(--text-3);font-size:11px;font-weight:500}
+.brief ul{margin:10px 0 0 24px;padding:0;font-size:13px;color:var(--text-2);line-height:1.7}
+.brief ul li b{color:var(--text)}
+
+/* Team of agents */
+.agents-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.agent-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.agent-card .an{display:flex;align-items:center;gap:8px;font-weight:600;font-size:12.5px}
+.agent-card .an .led{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,.15)}
+.agent-card .lr{font-size:11px;color:var(--text-3);margin-top:6px}
+.agent-card .inc{font-size:11px;color:var(--text-2);margin-top:2px}
+
+/* Deals-in-flight strip */
+.flight{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.flight .fs{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;position:relative}
+.flight .fs .n{font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.flight .fs .c{font-size:22px;font-weight:700;color:var(--purple-deep);margin-top:2px}
+.flight .fs .lbl{font-size:11.5px;color:var(--text-2);margin-top:1px}
+
+/* Drawer */
+.drawer-backdrop{position:fixed;inset:0;background:rgba(15,17,25,.5);z-index:998;display:none}
+.drawer-backdrop.open{display:block}
+.drawer{position:fixed;top:0;right:-1000px;bottom:0;width:920px;max-width:96vw;background:#fff;z-index:999;box-shadow:-16px 0 60px rgba(0,0,0,.25);transition:right .3s cubic-bezier(.16,1,.3,1);display:flex;flex-direction:column}
+.drawer.open{right:0}
+.drawer .dh{padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:14px}
+.drawer .dh h2{margin:0;font-size:16px;font-weight:700}
+.drawer .dh .dsub{color:var(--text-3);font-size:12px;margin-top:3px}
+.drawer .dh .x{margin-left:auto;background:transparent;border:0;font-size:22px;color:var(--text-3);cursor:pointer;padding:0 8px}
+.drawer .dh .x:hover{color:var(--text)}
+.drawer .db{flex:1;overflow-y:auto;padding:16px 22px}
+.drawer .df{padding:12px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;background:var(--surface-2)}
+
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.dfield{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.dfield .l{font-size:10.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+.dfield .v{font-size:13px;font-weight:600;margin-top:2px}
+.dfield.mono .v{font-family:var(--mono);font-size:12px}
+
+.dsec{margin-bottom:16px}
+.dsec h4{font-size:12px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.4px;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+/* Stepper (8-step) */
+.stepper{display:flex;flex-direction:column;gap:6px}
+.stepper .stp{display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:7px}
+.stepper .stp .n{width:22px;height:22px;border-radius:50%;background:var(--slate-bg);color:var(--text-3);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.stepper .stp.done .n{background:var(--green-bg);color:#0d6b2c}
+.stepper .stp.live .n{background:var(--purple);color:#fff;animation:pulse 1.6s infinite}
+.stepper .stp.pending{opacity:.6}
+.stepper .stp .lb{flex:1;font-size:12.5px;font-weight:500}
+.stepper .stp .mt{font-size:11px;color:var(--text-3)}
+
+/* Audit feed */
+.audit-feed{display:flex;flex-direction:column;gap:6px}
+.audit-item{padding:8px 12px;border-left:3px solid var(--border-strong);background:var(--surface-2);border-radius:0 6px 6px 0;font-size:12px}
+.audit-item.emma{border-left-color:var(--purple)}
+.audit-item.human{border-left-color:var(--blue)}
+.audit-item .ah{display:flex;align-items:center;gap:8px;font-weight:600}
+.audit-item .ah .ts{color:var(--text-3);font-weight:500;font-family:var(--mono);font-size:10.5px;margin-left:auto}
+.audit-item .ad{color:var(--text-2);margin-top:2px;font-size:11.5px}
+
+/* JSON snapshot */
+.jsonbox{background:#0f0f14;color:#e4e4e7;font-family:var(--mono);font-size:11px;padding:10px 12px;border-radius:6px;white-space:pre-wrap;line-height:1.5;max-height:200px;overflow:auto}
+
+/* Reconciliation card */
+.recon-card{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.recon-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.recon-col .rl{font-size:10.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:8px}
+.recon-row{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:12.5px;border-bottom:1px dashed var(--border)}
+.recon-row:last-child{border-bottom:0}
+.recon-row .k{color:var(--text-3);font-weight:500}
+.recon-row .v{color:var(--text);font-weight:600;text-align:right}
+.recon-row .v.mono{font-family:var(--mono);font-size:11.5px}
+.recon-divider{height:1px;background:var(--border);margin:14px 0}
+.confbar{display:flex;align-items:center;gap:10px;margin-top:8px}
+.confbar .track{flex:1;height:8px;background:var(--slate-bg);border-radius:99px;overflow:hidden}
+.confbar .fill{height:100%;border-radius:99px;transition:width .3s}
+.confbar .fill.g{background:var(--green)}
+.confbar .fill.a{background:var(--amber)}
+.confbar .fill.r{background:var(--red)}
+.confbar .pct{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--text);min-width:40px;text-align:right}
+.confbar-label{font-size:11px;color:var(--text-3);font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+
+/* Contract card */
+.contract-card{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.contract-head{display:flex;align-items:flex-start;gap:12px}
+.contract-icon{width:34px;height:34px;border-radius:8px;background:var(--purple-soft);color:var(--purple-deep);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.contract-info{flex:1;min-width:0}
+.contract-fn{font-size:14px;font-weight:700;letter-spacing:-.1px;color:var(--text);word-break:break-all}
+.contract-meta{font-size:11.5px;color:var(--text-3);margin-top:3px}
+.contract-parties{margin-top:10px;font-size:12px;color:var(--text-2);line-height:1.5}
+.contract-parties .k{color:var(--text-3);font-weight:600;display:inline-block;min-width:80px}
+.contract-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+
+/* PDF modal */
+.pdf-modal-bd{position:fixed;inset:0;background:rgba(15,17,25,.6);z-index:1001;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
+.pdf-modal-bd.open{display:flex}
+.pdf-modal{background:#fff;width:800px;max-width:100%;border-radius:12px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;max-height:calc(100vh - 80px)}
+.pdf-modal .pmh{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--surface-2);border-radius:12px 12px 0 0}
+.pdf-modal .pmh .fn{flex:1;font-size:13px;font-weight:700;font-family:var(--mono);color:var(--text)}
+.pdf-modal .pmh .x{background:transparent;border:0;font-size:22px;color:var(--text-3);cursor:pointer;padding:0 6px}
+.pdf-modal .pmh .x:hover{color:var(--text)}
+.pdf-modal .pmb{flex:1;overflow-y:auto;padding:24px;background:#e8e8ea}
+.pdf-page{background:#fff;padding:56px 64px;border-radius:2px;box-shadow:0 2px 12px rgba(0,0,0,.10);font-family:Georgia,"Times New Roman",serif;color:#1a1a1f;font-size:12.5px;line-height:1.7;min-height:620px}
+.pdf-page h1{font-size:18px;font-weight:700;letter-spacing:.5px;text-align:center;margin:0 0 4px;text-transform:uppercase;font-family:Georgia,serif}
+.pdf-page .subtitle{text-align:center;font-size:11.5px;color:#555;font-style:italic;margin-bottom:24px}
+.pdf-page .section-h{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin:18px 0 6px;font-family:Georgia,serif}
+.pdf-page p{margin:0 0 12px;text-indent:20px}
+.pdf-page .parties{margin:8px 0 20px;font-style:italic;text-align:center}
+.pdf-page .schedule-block{margin:12px 0;padding:10px 14px;border-left:2px solid #888;background:#fafafa;font-size:12px;text-indent:0}
+.pdf-page .sig-block{margin-top:32px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.pdf-page .sig{border-top:1px solid #333;padding-top:6px}
+.pdf-page .sig .name{font-weight:700;font-size:12px}
+.pdf-page .sig .role{font-size:10.5px;color:#666;font-style:italic}
+.pdf-page .sig .stamp{margin-top:6px;display:inline-block;padding:2px 8px;border:1px solid #16a34a;border-radius:3px;color:#16a34a;font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;font-family:sans-serif}
+.pdf-modal .pmf{padding:10px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface-2);border-radius:0 0 12px 12px;font-size:11.5px;color:var(--text-3)}
+.pdf-modal .pmf .pg{font-family:var(--mono);font-size:11.5px}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--text);color:#fff;padding:12px 16px;border-radius:8px;box-shadow:var(--shadow-lg);font-size:12.5px;z-index:1000;opacity:0;transform:translateY(20px);transition:.2s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{background:var(--green)}
+.toast.warn{background:var(--amber)}
+.toast.err{background:var(--red)}
+
+/* Filters */
+.filters{display:flex;gap:8px;align-items:center;padding:12px 18px;background:var(--surface-2);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.filters input.sr,.filters select.fl{padding:6px 10px;border:1px solid var(--border-strong);border-radius:6px;background:#fff;font-size:12.5px}
+.filters .sr{min-width:220px}
+
+/* Config panels */
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cfg-row{display:grid;grid-template-columns:170px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--border)}
+.cfg-row:last-child{border-bottom:0}
+.cfg-row .lb{font-size:12px;color:var(--text-2);font-weight:500}
+.cfg-row input.f,.cfg-row select.f{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;width:100%;background:#fff}
+
+/* Toggle */
+.toggle{position:relative;width:36px;height:20px;background:var(--slate-bg);border-radius:99px;cursor:pointer;transition:.15s}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;transition:.15s;box-shadow:var(--shadow)}
+.toggle.on{background:var(--purple)}
+.toggle.on::after{left:18px}
+
+.amt-cell{font-family:var(--mono);font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.amt-cell.green{color:#0d6b2c}
+.amt-cell.amber{color:#8a5a10}
+.amt-cell.orange{color:#9a3d0a}
+.amt-cell.red{color:#8b0f0f}
+
+.hint{font-size:11px;color:var(--text-3);margin-top:4px}
+.suggest{display:flex;gap:6px;flex-wrap:wrap}
+.suggest .s{background:var(--purple-soft);color:var(--purple-deep);padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--purple-mid);cursor:pointer}
+.suggest .s:hover{background:var(--purple);color:#fff}
+
+.warn-box{background:var(--amber-bg);border:1px solid #f3d18a;color:#8a5a10;padding:9px 12px;border-radius:8px;font-size:12px;margin:0 0 12px}
+
+/* Empty */
+.empty{padding:40px 20px;text-align:center;color:var(--text-3);font-size:12.5px}
+
+/* ========== Deployment banner ========== */
+.depbanner{background:linear-gradient(90deg,#f7f5ff 0%,#fff 100%);border-bottom:1px solid var(--border);padding:10px 32px;display:flex;align-items:center;gap:14px;font-size:12px;color:var(--text-2)}
+.depbanner .modechip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:var(--purple-soft);color:var(--purple-deep);border:1px solid var(--purple-mid)}
+.depbanner .modechip .dot{width:6px;height:6px;border-radius:50%;background:var(--purple)}
+.depbanner .sep{color:var(--text-3)}
+.depbanner .cliwrap{display:inline-flex;align-items:center;gap:6px}
+.depbanner select.clisel{padding:4px 10px;border:1px solid var(--border-strong);border-radius:6px;background:#fff;font-size:12px;font-weight:600;color:var(--text)}
+.depbanner .modetoggle{margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-3)}
+.depbanner .modetoggle .btn{padding:4px 10px;font-size:11.5px}
+
+/* ========== Coworker card (Activate pattern — matches Priya card) ========== */
+.coworker-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:18px;box-shadow:var(--shadow);display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:flex-start}
+.cw-avatar{width:56px;height:56px;border-radius:12px;background:#E8F5EA;color:#0f7a45;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;letter-spacing:-0.3px;flex-shrink:0}
+.cw-main{min-width:0}
+.cw-titlerow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cw-title{font-size:18px;font-weight:700;letter-spacing:-0.2px;margin:0;color:#111114}
+.cw-title .role{color:var(--text-3);font-weight:500}
+.cw-onshift-inline{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600;background:var(--green-bg);color:#0d6b2c}
+.cw-onshift-inline .d{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.cw-meta{color:var(--text-3);font-size:13px;margin-top:6px;line-height:1.5}
+.cw-quote{margin-top:12px;font-style:italic;color:var(--text-2);font-size:13px;line-height:1.6;border-left:3px solid var(--purple);padding-left:12px}
+.cw-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.cw-kpi{background:#f7f7f8;border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+.cw-kpi .l{font-size:11px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.cw-kpi .v{font-size:30px;font-weight:700;letter-spacing:-0.4px;margin-top:4px;line-height:1.05}
+.cw-kpi .v.red{color:var(--red)}
+.cw-kpi .v.green{color:var(--green)}
+.cw-kpi .m{font-size:11.5px;color:var(--text-3);margin-top:4px}
+.cw-team-label{font-size:12.5px;color:var(--text-2);font-weight:500;margin-top:18px}
+.cw-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.cw-pills.row2{margin-top:6px}
+.cw-pills .p{font-size:11.5px;padding:4px 11px;border-radius:99px;font-weight:500;background:#f0f0f2;color:var(--text);border:1px solid transparent}
+.cw-pills .p.roadmap{background:#fef3e0;color:#8a5a10}
+.cw-openws-full{margin-top:16px;display:block;width:100%;padding:11px 14px;background:var(--purple);border:1px solid var(--purple);color:#fff;border-radius:8px;font-size:14px;font-weight:500;text-align:center;cursor:pointer;transition:.12s;text-decoration:none;box-sizing:border-box}
+.cw-openws-full:hover{background:var(--purple-deep);border-color:var(--purple-deep);color:#fff}
+
+/* About Emma callout */
+.about-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:16px;box-shadow:var(--shadow)}
+.about-card h4{margin:0 0 6px;font-size:13px;font-weight:700}
+.about-card p{margin:6px 0 0;font-size:12.5px;color:var(--text-2);line-height:1.55}
+
+/* Agent pill mini-card (Activate pattern) */
+.agents-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(min-width:1200px){.agents-strip{grid-template-columns:repeat(6,1fr)}}
+.agent-pill{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;position:relative}
+.agent-pill .hd{display:flex;align-items:center;gap:6px}
+.agent-pill .hd .led{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.agent-pill .hd .led.live{background:var(--purple);box-shadow:0 0 0 3px rgba(124,92,252,.18)}
+.agent-pill .hd .led.staging{background:var(--amber);box-shadow:0 0 0 3px rgba(217,119,6,.15)}
+.agent-pill .hd .led.roadmap{background:var(--text-3);box-shadow:0 0 0 3px rgba(138,138,148,.15)}
+.agent-pill .hd .nm{font-size:12px;font-weight:600;letter-spacing:-0.1px}
+.agent-pill .lr{font-size:10.5px;color:var(--text-3);font-family:var(--mono)}
+.agent-pill .inc{font-size:11px;color:var(--text-2)}
+.agent-pill .op{font-size:11px;color:var(--purple-deep);font-weight:600;cursor:pointer}
+.agent-pill .op:hover{text-decoration:underline}
+.agent-pill.roadmap{background:var(--surface-2);border-style:dashed}
+.agent-pill.roadmap .nm{color:var(--text-2)}
+
+/* Revenue over time — chart card / stat pills / breakdown / forecast */
+.rev-desc{font-size:12px;color:var(--text-3);margin-top:2px}
+.rev-hd-right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rev-stat{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:11.5px;color:var(--text-2);display:inline-flex;gap:6px;align-items:baseline}
+.rev-stat .lbl{color:var(--text-3);font-weight:500}
+.rev-stat .val{font-family:var(--mono);font-weight:700;color:var(--text)}
+.mom-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;font-family:var(--mono)}
+.mom-chip.up{background:var(--green-bg);color:#0d6b2c}
+.mom-chip.down{background:var(--red-bg);color:#8b0f0f}
+.mom-chip.flat{background:var(--slate-bg);color:var(--slate)}
+.chart-wrap{position:relative;height:260px;width:100%}
+.rev-legend{display:flex;gap:14px;align-items:center;justify-content:flex-end;font-size:11.5px;color:var(--text-2);margin-bottom:10px}
+.rev-legend .lg{display:inline-flex;align-items:center;gap:6px}
+.rev-legend .sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+table.t.sortable thead th{cursor:pointer;user-select:none}
+table.t.sortable thead th:hover{background:var(--purple-soft)}
+table.t.sortable thead th .srt{color:var(--text-3);font-size:9px;margin-left:4px}
+table.t tbody tr.mo-current{background:var(--purple-soft)!important}
+table.t tbody tr.mo-current td{font-weight:600}
+.mom-cell{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:11.5px}
+.mom-cell.up{color:#0d6b2c}
+.mom-cell.down{color:#8b0f0f}
+.mom-cell.flat{color:var(--text-3)}
+.rev-forecast-total{display:flex;justify-content:space-between;align-items:baseline;padding:10px 14px;background:var(--purple-soft);border-radius:8px;margin-top:10px}
+.rev-forecast-total .lb{font-size:12px;color:var(--purple-deep);font-weight:600}
+.rev-forecast-total .vl{font-size:15px;font-weight:700;font-family:var(--mono);color:var(--purple-deep)}
+.csv-btn{background:var(--surface);border:1px solid var(--border-strong);color:var(--text-2);border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:600;cursor:pointer}
+.csv-btn:hover{background:var(--purple-soft);border-color:var(--purple);color:var(--purple-deep)}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ================== PRIMARY SIDEBAR: Lumina Activate ================== -->
+  <aside class="psb">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.9209 3.9209C8.08199 2.75981 9.96417 2.75985 11.124 3.9209L17.1025 9.89941C18.2633 11.0605 18.2635 12.9428 17.1025 14.1025C15.9416 15.2635 14.0593 15.2632 12.8994 14.1025L6.9209 8.12402C5.75981 6.96293 5.75985 5.08075 6.9209 3.9209Z" fill="#6A3F8C"/><path d="M12.8994 9.89746C14.0601 8.73723 15.942 8.73699 17.1025 9.89746C18.2636 11.0586 18.2636 12.9417 17.1025 14.1016L11.124 20.0791C9.99911 21.204 8.19722 21.2393 7.03125 20.1846L6.9209 20.0791L6.81543 19.9688C5.76072 18.8017 5.79606 16.9997 6.9209 15.876L12.8994 9.89746Z" fill="#4C305F"/></svg></span>
+      <div class="name">Lumina Activate</div>
+      <span class="collapse" title="Collapse sidebar">&lsaquo;</span>
+    </div>
+
+    <div class="grp">
+      <div class="lbl">Today</div>
+      <div class="pn">Workspace</div>
+      <div class="pn">Needs my review</div>
+    </div>
+
+    <div class="grp">
+      <div class="lbl">Your team</div>
+      <div class="pn active">Coworkers<span class="newbadge">New</span></div>
+      <div class="pn">Agents</div>
+      <div class="pn">My automations</div>
+    </div>
+
+    <div class="grp">
+      <div class="lbl">Results</div>
+      <div class="pn">Impact</div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="grp">
+      <div class="pn muted">Admin</div>
+    </div>
+
+    <div class="psb-spacer"></div>
+  </aside>
+
+  <!-- ================== SECONDARY SIDEBAR: Emma views ================== -->
+  <aside class="ssb">
+    <div class="back">← Back to Coworkers</div>
+    <div class="prod">
+      <div class="l">Product</div>
+      <div class="n">Acme Corp</div>
+      <div class="m">HubSpot + QuickBooks</div>
+    </div>
+
+    <div class="vwlbl">Views</div>
+    <nav class="nav" id="tabNav">
+      <div class="ni active" data-tab="overview"><span class="av">Ov</span><span class="lb">Overview</span></div>
+      <div class="ni" data-tab="pipeline"><span class="av">Dp</span><span class="lb">Deal pipeline</span><span class="badge" style="background:var(--slate-bg);color:var(--text-2)">16</span></div>
+      <div class="ni" data-tab="schedule"><span class="av">S</span><span class="lb">Invoicing schedule</span></div>
+      <div class="ni" data-tab="approval"><span class="av">Aa</span><span class="lb">Awaiting approval</span><span class="badge">8</span></div>
+      <div class="ni" data-tab="cash"><span class="av">Ca</span><span class="lb">Cash application</span></div>
+      <div class="ni" data-tab="collections"><span class="av">Cq</span><span class="lb">Collections queue</span><span class="badge" style="background:var(--amber-bg);color:#8a5a10">12</span></div>
+      <div class="ni" data-tab="incidents"><span class="av">In</span><span class="lb">Incidents</span><span class="badge">15</span></div>
+      <div class="ni" data-tab="audit"><span class="av">Au</span><span class="lb">Audit</span></div>
+      <div class="ni" data-tab="config"><span class="av">Cf</span><span class="lb">Config</span></div>
+    </nav>
+
+    <div class="foot">
+      <button class="btn sm" onclick="resetPrototype()">Reset prototype data</button>
+    </div>
+  </aside>
+
+  <!-- ================== MAIN ================== -->
+  <main class="main">
+    <!-- Deployment mode banner -->
+    <div class="depbanner" id="depbanner">
+      <span class="modechip" id="modeChip"><span class="dot"></span><span id="modeLabel">Practice mode</span></span>
+      <span class="sep">·</span>
+      <span id="orgLabel">GoalTegic Advisory</span>
+      <span class="sep" id="cliSep">·</span>
+      <span class="cliwrap" id="cliWrap">
+        <span style="font-weight:600;color:var(--text-2)">Client:</span>
+        <select class="clisel" id="clientSel">
+          <option value="rally" selected>Rally UXR</option>
+          <option value="trade">Trade Space</option>
+          <option value="halcyon">Halcyon Events</option>
+          <option value="all">All clients (rollup)</option>
+        </select>
+      </span>
+      <span class="modetoggle">
+        <span>Demo mode:</span>
+        <button class="btn sm" id="btnModeDirect" onclick="setMode('direct')">Direct</button>
+        <button class="btn sm primary" id="btnModePractice" onclick="setMode('practice')">Practice</button>
+      </span>
+    </div>
+
+    <div class="header">
+      <div class="h1">
+        <h1 class="title">Emma · Revenue Cycle coworker</h1>
+        <div class="subtitle" id="pageSubtitle">Emma sits above your invoicing tool (Ramp, bill.com, Chargebee, Stripe) and orchestrates the deal-to-cash workflow across HubSpot, QuickBooks, and your finance inbox.</div>
+      </div>
+      <div class="right"><span class="live-dot"></span> Tuesday, September 15, 2026 · live</div>
+    </div>
+
+    <div class="content">
+
+    <!-- ============= OVERVIEW ============= -->
+    <section class="screen active" id="scr-overview">
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="l">Deals closed 7d</div>
+          <div class="v" id="kpiDeals">18</div>
+          <div class="meta" id="kpiDealsMeta">3 from webhook, 15 from polling</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Invoices sent 7d</div>
+          <div class="v" id="kpiInvoices">22 · <span style="font-size:20px;color:var(--text-2)">$487K</span></div>
+          <div class="meta" id="kpiInvoicesMeta">Auto-approved 14 · human-approved 8</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Avg days-to-cash</div>
+          <div class="v" id="kpiDTC">34<span style="font-size:14px;color:var(--text-2);font-weight:500"> days</span></div>
+          <div class="meta"><span class="trend up-good">↓ 6 vs last mo</span></div>
+        </div>
+        <div class="kpi">
+          <div class="l">Decisions waiting on you</div>
+          <div class="v red" id="kpiDecisions">5</div>
+          <div class="meta" id="kpiDecisionsMeta">1 approval · 2 unmatched · 1 dispute · 1 writeoff</div>
+        </div>
+      </div>
+
+      <!-- Morning brief -->
+      <div class="brief">
+        <h3><span class="av">E</span> Morning brief · Tuesday Sep 15 · 7:00am</h3>
+        <div class="stamp" id="briefStamp">Auto-generated at client local time · Rally UXR</div>
+        <ul id="briefList">
+          <li>Overnight I processed <b>3 HubSpot deal-close events for Rally</b>, drafted <b>3 invoices</b> in your Ramp instance ($47K, $28K, $12K).</li>
+          <li>1 invoice (<b>$47K Acme Corp</b>) is awaiting your approval — over the $50K finance-lead threshold.</li>
+          <li>4 invoices reached <b>Day 8 first-notice today</b>, Ramp auto-sent per cadence.</li>
+          <li>1 <b>dispute detected</b> (Meridian Industries) — I paused Ramp's cadence and opened incident <code style="font-family:var(--mono);font-size:11px;background:var(--slate-bg);padding:1px 6px;border-radius:4px">INC-4419</code> for Tara to review.</li>
+          <li>2 QuickBooks payments held for review — <b>fuzzy-match confidence 0.62 and 0.71</b>, both below 0.85 threshold.</li>
+        </ul>
+      </div>
+
+      <!-- ============= Revenue over time ============= -->
+      <!-- Card 1: Monthly invoicing chart -->
+      <div class="section">
+        <div class="sh">
+          <div>
+            <h3>Invoicing volume · trailing 12 months</h3>
+            <div class="rev-desc">Invoices issued per month, colored by current status</div>
+          </div>
+          <div class="rev-hd-right">
+            <span class="rev-stat"><span class="lbl">This month</span><span class="val" id="revStatThis">$0K</span></span>
+            <span class="rev-stat"><span class="lbl">Last month</span><span class="val" id="revStatLast">$0K</span></span>
+            <span class="mom-chip flat" id="revStatMoM">— 0%</span>
+          </div>
+        </div>
+        <div class="body">
+          <div class="rev-legend">
+            <span class="lg"><span class="sw" style="background:#0f7a45"></span> Paid</span>
+            <span class="lg"><span class="sw" style="background:#7c5cfc"></span> Outstanding</span>
+            <span class="lg"><span class="sw" style="background:#e05252"></span> Overdue</span>
+          </div>
+          <div class="chart-wrap"><canvas id="revChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Card 2: Monthly breakdown table -->
+      <div class="section">
+        <div class="sh">
+          <h3>Month-by-month breakdown</h3>
+          <span class="desc">· trailing 12 months, sortable</span>
+          <div class="right"><button class="csv-btn" id="btnRevCsv" type="button">Export CSV</button></div>
+        </div>
+        <div class="body padless">
+          <table class="t sortable" id="tbl-rev-monthly">
+            <thead><tr>
+              <th data-key="month">Month <span class="srt">▲▼</span></th>
+              <th class="num" data-key="invoiced">Invoiced $ <span class="srt">▲▼</span></th>
+              <th class="num" data-key="paid">Paid $ <span class="srt">▲▼</span></th>
+              <th class="num" data-key="outstanding">Outstanding $ <span class="srt">▲▼</span></th>
+              <th class="num" data-key="overdue">Overdue $ <span class="srt">▲▼</span></th>
+              <th class="num" data-key="collection">Collection rate <span class="srt">▲▼</span></th>
+              <th class="num" data-key="mom">MoM change <span class="srt">▲▼</span></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Card 3: Forward view — scheduled invoices next 90 days -->
+      <div class="section">
+        <div class="sh">
+          <h3>Scheduled invoices · next 90 days</h3>
+          <span class="desc">· Upcoming invoices from active progressive contracts. Emma will draft each on its due date.</span>
+        </div>
+        <div class="body padless">
+          <table class="t" id="tbl-rev-forecast">
+            <thead><tr>
+              <th>Due date</th><th>Client</th><th>Contract</th><th>Milestone</th><th class="num">Amount</th><th>Status</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="body" style="padding-top:0">
+          <div class="rev-forecast-total">
+            <span class="lb" id="revForecastLbl">Forecast: $0K across 0 invoices in next 90 days</span>
+            <span class="vl" id="revForecastVal">$0K</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Team of agents (Activate pill pattern) -->
+      <div class="section">
+        <div class="sh"><h3>Team of agents</h3><span class="desc">· dispatched by Emma across the deal-to-cash flow</span></div>
+        <div class="body">
+          <div class="agents-strip">
+            <div class="agent-pill">
+              <div class="hd"><span class="led live"></span><span class="nm">HubSpot Sync</span></div>
+              <div class="lr">Last run 2 min ago</div>
+              <div class="inc">3 events today · 0 incidents</div>
+              <a class="op" onclick="toast('success','Opened HubSpot Sync agent (cosmetic)')">Open →</a>
+            </div>
+            <div class="agent-pill">
+              <div class="hd"><span class="led live"></span><span class="nm">Invoicing</span></div>
+              <div class="lr">Last run 14 min ago</div>
+              <div class="inc">3 invoices drafted · 1 held for approval</div>
+              <a class="op" onclick="toast('success','Opened Invoicing agent (cosmetic)')">Open →</a>
+            </div>
+            <div class="agent-pill">
+              <div class="hd"><span class="led live"></span><span class="nm">Cash Application</span></div>
+              <div class="lr">Last run 6 min ago</div>
+              <div class="inc">7 applied · 2 unmatched</div>
+              <a class="op" onclick="toast('success','Opened Cash Application agent (cosmetic)')">Open →</a>
+            </div>
+            <div class="agent-pill">
+              <div class="hd"><span class="led live"></span><span class="nm">AR Collections</span></div>
+              <div class="lr">Last run 1 hr ago</div>
+              <div class="inc">4 first-notices sent · 1 dispute paused</div>
+              <a class="op" onclick="toast('success','Opened AR Collections agent (cosmetic)')">Open →</a>
+            </div>
+            <div class="agent-pill roadmap">
+              <div class="hd"><span class="led roadmap"></span><span class="nm">Portal Upload</span></div>
+              <div class="lr">Phase 2 roadmap</div>
+              <div class="inc">Coupa, Ariba, Bill.com portals</div>
+              <a class="op" onclick="toast('warn','Portal Upload is Phase 2 roadmap')">Preview →</a>
+            </div>
+            <div class="agent-pill roadmap">
+              <div class="hd"><span class="led roadmap"></span><span class="nm">Contract Parser</span></div>
+              <div class="lr">Phase 2 roadmap</div>
+              <div class="inc">DocuSign, PandaDoc, Ironclad</div>
+              <a class="op" onclick="toast('warn','Contract Parser is Phase 2 roadmap')">Preview →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deals in flight -->
+      <div class="section">
+        <div class="sh"><h3>Deals in flight</h3><span class="desc">· 7-step flow from HubSpot close to cash applied</span></div>
+        <div class="body">
+          <div class="flight">
+            <div class="fs"><div class="n">Step 1</div><div class="c">2</div><div class="lbl">Trigger detected</div></div>
+            <div class="fs"><div class="n">Step 2</div><div class="c">1</div><div class="lbl">PDF extracted</div></div>
+            <div class="fs"><div class="n">Step 3</div><div class="c">3</div><div class="lbl">Invoice draft</div></div>
+            <div class="fs"><div class="n">Step 4</div><div class="c">4</div><div class="lbl">Awaiting approval</div></div>
+            <div class="fs"><div class="n">Step 5</div><div class="c">2</div><div class="lbl">Sent</div></div>
+            <div class="fs"><div class="n">Step 6</div><div class="c">3</div><div class="lbl">Payment tracking</div></div>
+            <div class="fs"><div class="n">Step 7</div><div class="c">1</div><div class="lbl">Cash applied</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= DEAL PIPELINE ============= -->
+    <section class="screen" id="scr-pipeline">
+      <div class="section">
+        <div class="sh"><h3>Deal pipeline · kanban</h3><span class="desc">· drag cards between columns for demo</span>
+          <div class="right"><span class="pill purple dot">16 deals in flight</span></div>
+        </div>
+        <div class="body">
+          <div class="kanban" id="kanban-deals"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= INVOICING SCHEDULE ============= -->
+    <section class="screen" id="scr-schedule">
+      <div class="sch-head">
+        <div class="h1">
+          <h2 class="t">Invoicing schedule</h2>
+          <div class="st">All scheduled invoices across your deals and contracts. Emma drafts each on its due date.</div>
+        </div>
+        <div class="r">
+          <button class="btn" onclick="openGenerateAheadModal()">Generate ahead</button>
+          <button class="btn" onclick="exportScheduleCsv()">Export CSV</button>
+        </div>
+      </div>
+
+      <div class="kpis" id="sch-kpis">
+        <div class="kpi"><div class="l">Scheduled next 30 days</div><div class="v" id="schKpi30"></div><div class="meta" id="schKpi30Meta"></div></div>
+        <div class="kpi"><div class="l">Scheduled next 90 days</div><div class="v" id="schKpi90"></div><div class="meta" id="schKpi90Meta"></div></div>
+        <div class="kpi"><div class="l">Overdue for issuance</div><div class="v" id="schKpiOverdue"></div><div class="meta" id="schKpiOverdueMeta"></div></div>
+        <div class="kpi"><div class="l">Next scheduled</div><div class="v" id="schKpiNext" style="font-size:18px;font-weight:600"></div><div class="meta" id="schKpiNextMeta"></div></div>
+      </div>
+
+      <div class="sch-chips">
+        <span class="lbl">Timeframe</span>
+        <button class="sch-chip" data-schtf="week">This week</button>
+        <button class="sch-chip active" data-schtf="30">Next 30d</button>
+        <button class="sch-chip" data-schtf="90">Next 90d</button>
+        <button class="sch-chip" data-schtf="all">All</button>
+        <span style="width:12px"></span>
+        <span class="lbl">Status</span>
+        <button class="sch-chip active" data-schst="all">All</button>
+        <button class="sch-chip" data-schst="scheduled">Scheduled</button>
+        <button class="sch-chip" data-schst="draft">Draft</button>
+        <button class="sch-chip" data-schst="sent">Sent</button>
+        <button class="sch-chip" data-schst="paid">Paid</button>
+        <button class="sch-chip" data-schst="voided">Voided</button>
+        <span style="margin-left:auto;font-size:11.5px;color:var(--text-3)" id="schResultCount"></span>
+      </div>
+
+      <!-- List view -->
+      <div class="sch-view" id="sch-view-list">
+        <div class="section">
+          <div class="sh">
+            <h3>Scheduled invoices</h3>
+            <span class="desc">· canonical list · click a row for detail</span>
+            <div class="right"><span class="pill purple dot" id="schListCount">0 rows</span></div>
+          </div>
+          <div class="body padless">
+            <table class="t" id="tbl-schedule">
+              <thead><tr>
+                <th data-schsort="dueDate" style="cursor:pointer">Due date ▲</th>
+                <th>Client</th>
+                <th>Contract / Deal</th>
+                <th>Milestone</th>
+                <th class="num">Amount</th>
+                <th>Status</th>
+                <th style="text-align:right">Actions</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= AWAITING APPROVAL ============= -->
+    <section class="screen" id="scr-approval">
+      <div class="section">
+        <div class="sh"><h3>Invoices awaiting approval</h3><span class="desc">· routed by matrix threshold</span>
+          <div class="right">
+            <span class="pill green">&lt;$5K auto</span>
+            <span class="pill amber">$5-50K deal owner</span>
+            <span class="pill orange">$50-250K finance lead</span>
+            <span class="pill red">&gt;$250K CFO</span>
+          </div>
+        </div>
+        <div class="body padless">
+          <table class="t" id="tbl-approval">
+            <thead><tr>
+              <th>Invoice #</th><th>Customer</th><th class="num">Amount</th><th>Deal source</th><th>Approver</th><th class="num">Age (h)</th><th>Escalation at</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= CASH APPLICATION ============= -->
+    <section class="screen" id="scr-cash">
+      <div class="section">
+        <div class="sh"><h3>Cash application</h3><span class="desc">· QB payments reconciled to invoices</span></div>
+        <div class="subtabs" id="cash-tabs">
+          <button class="subtab active" data-cashtab="matched">Matched <span class="cnt">15</span></button>
+          <button class="subtab" data-cashtab="unmatched">Unmatched <span class="cnt">4</span></button>
+          <button class="subtab" data-cashtab="partial">Partial <span class="cnt">3</span></button>
+        </div>
+        <div class="body padless" id="cash-body"></div>
+      </div>
+    </section>
+
+    <!-- ============= COLLECTIONS QUEUE ============= -->
+    <section class="screen" id="scr-collections">
+      <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+        <div class="kpi"><div class="l">Total overdue</div><div class="v">$284K</div><div class="meta">12 invoices past due</div></div>
+        <div class="kpi"><div class="l">Avg DPD</div><div class="v">28<span style="font-size:14px;color:var(--text-2);font-weight:500"> days</span></div><div class="meta">2 over 45 days</div></div>
+        <div class="kpi"><div class="l">Disputes paused</div><div class="v">1</div><div class="meta">Meridian Industries · $28K</div></div>
+      </div>
+      <div class="section">
+        <div class="sh"><h3>Collections queue · dunning stages</h3></div>
+        <div class="body">
+          <div class="kanban" id="kanban-collections"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= INCIDENTS ============= -->
+    <section class="screen" id="scr-incidents">
+      <div class="section">
+        <div class="sh"><h3>Emma's incidents</h3><span class="desc">· 17 incident types across the 7-step workflow</span></div>
+        <div class="filters">
+          <input class="sr" id="incSearch" placeholder="Search incidents…">
+          <select class="fl" id="incTypeF"><option value="">All types</option></select>
+          <select class="fl" id="incStatusF">
+            <option value="">All statuses</option>
+            <option>received</option><option>held_for_review</option><option>awaiting_approval</option><option>resolved</option>
+          </select>
+          <span class="hint" id="incCount"></span>
+        </div>
+        <div class="body padless">
+          <table class="t" id="tbl-incidents">
+            <thead><tr>
+              <th>Incident #</th><th>Type</th><th>Customer</th><th>Status</th><th>Handler</th><th class="num">Age</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= AUDIT ============= -->
+    <section class="screen" id="scr-audit">
+      <div class="section">
+        <div class="sh"><h3>Audit trail</h3><span class="desc">· scoped to Emma's actions across all 7 workflow steps</span>
+          <div class="right"><button class="btn sm" onclick="exportCSV()">Export CSV</button></div>
+        </div>
+        <div class="filters">
+          <input class="sr" id="audSearch" placeholder="Search events, entities…">
+          <select class="fl" id="audEntityF">
+            <option value="">All entities</option><option>deal</option><option>invoice</option><option>payment</option>
+          </select>
+          <select class="fl" id="audActorF">
+            <option value="">All actors</option><option>Emma</option><option>Tom Chen</option><option>Priya Patel</option><option>Riya Menon</option><option>system</option>
+          </select>
+          <select class="fl" id="audEventF">
+            <option value="">All events</option>
+          </select>
+        </div>
+        <div class="body padless">
+          <table class="t" id="tbl-audit">
+            <thead><tr>
+              <th>Timestamp</th><th>Event</th><th>Entity</th><th>Actor</th><th>Target</th><th>Rationale</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= CONFIG ============= -->
+    <section class="screen" id="scr-config">
+
+      <div class="section">
+        <div class="sh"><h3>Deployment</h3><span class="desc">· how Emma is installed for this workspace</span></div>
+        <div class="body">
+          <div class="cfg-row">
+            <span class="lb">Mode</span>
+            <div style="display:flex;gap:8px">
+              <button class="btn sm" id="cfgModeDirect" onclick="setMode('direct')">Direct (single company)</button>
+              <button class="btn sm primary" id="cfgModePractice" onclick="setMode('practice')">Practice (accounting firm)</button>
+            </div>
+            <span></span>
+          </div>
+          <div class="cfg-row">
+            <span class="lb" id="cfgOrgLbl">Firm identifier</span>
+            <input class="f" id="cfgOrgInput" value="GoalTegic Advisory">
+            <span></span>
+          </div>
+          <div class="cfg-row" id="cfgSeatRow">
+            <span class="lb">Practice seat</span>
+            <input class="f" value="tara@goaltegic.com · Managing Partner">
+            <span></span>
+          </div>
+          <div class="cfg-row">
+            <span class="lb">Invoicing tool</span>
+            <select class="f"><option>Ramp</option><option>bill.com</option><option>Chargebee</option><option>Stripe Invoicing</option><option>QuickBooks (native)</option></select>
+            <span></span>
+          </div>
+          <div class="cfg-row">
+            <span class="lb">Emma writes to invoicing tool</span>
+            <span></span>
+            <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" id="cfgClientsSection">
+        <div class="sh"><h3>Client instances</h3><span class="desc">· one Emma instance per client, orchestrated from this practice seat</span></div>
+        <div class="body padless">
+          <table class="t">
+            <thead><tr><th>Client</th><th>Invoicing tool</th><th>HubSpot connected</th><th>QuickBooks connected</th><th>Status</th><th>Decisions today</th></tr></thead>
+            <tbody id="cfgClientsTbody">
+              <tr><td>Rally UXR</td><td>Ramp</td><td><span class="pill green dot">connected</span></td><td><span class="pill green dot">connected</span></td><td><span class="pill green dot">live</span></td><td class="num">5</td></tr>
+              <tr><td>Trade Space</td><td>bill.com</td><td><span class="pill green dot">connected</span></td><td><span class="pill green dot">connected</span></td><td><span class="pill green dot">live</span></td><td class="num">2</td></tr>
+              <tr><td>Halcyon Events</td><td>Chargebee</td><td><span class="pill amber dot">staging</span></td><td><span class="pill green dot">connected</span></td><td><span class="pill amber dot">onboarding</span></td><td class="num">0</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sh"><h3>Approval matrix</h3><span class="desc">· thresholds routed per amount</span></div>
+        <div class="body padless">
+          <table class="t">
+            <thead><tr><th>Tier</th><th>Amount range</th><th>Approver</th><th>Escalation after</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td class="mono">&lt; $5,000</td><td>Auto-approved by Emma</td><td>—</td></tr>
+              <tr><td>2</td><td class="mono">$5,000 - $50,000</td><td>Deal owner (from HubSpot)</td><td>24h → finance lead</td></tr>
+              <tr><td>3</td><td class="mono">$50,000 - $250,000</td><td>Finance lead (Tom Chen)</td><td>48h → CFO</td></tr>
+              <tr><td>4</td><td class="mono">&gt; $250,000</td><td>CFO (Priya Patel)</td><td>Hold (no auto-escalation)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sh"><h3>Dunning cadence</h3><span class="desc">· days past due triggers</span></div>
+        <div class="body padless">
+          <table class="t">
+            <thead><tr><th>Stage</th><th>DPD trigger</th><th>Action</th><th>Approver</th></tr></thead>
+            <tbody>
+              <tr><td>Reminder</td><td class="mono">1</td><td>Auto-send friendly reminder</td><td>Auto</td></tr>
+              <tr><td>First notice</td><td class="mono">8</td><td>Auto-send first notice</td><td>Auto</td></tr>
+              <tr><td>Second notice</td><td class="mono">22</td><td>Auto-send · CC deal owner</td><td>Auto</td></tr>
+              <tr><td>Final demand</td><td class="mono">45</td><td>Emma drafts · stages for approval</td><td>Finance lead</td></tr>
+              <tr><td>Escalated</td><td class="mono">60</td><td>Incident: collections_escalation_required</td><td>Human</td></tr>
+              <tr><td>Writeoff review</td><td class="mono">90</td><td>Incident: writeoff_candidate</td><td>Finance lead + controller</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="cfg-grid">
+        <div class="section">
+          <div class="sh"><h3>Delivery preferences</h3></div>
+          <div class="body">
+            <div class="cfg-row"><span class="lb">Primary channel</span><select class="f"><option>Email</option><option>Client portal</option><option>Both (dual send)</option></select><span></span></div>
+            <div class="cfg-row"><span class="lb">Auto-send on approval</span><span></span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            <div class="cfg-row"><span class="lb">Human-in-loop send</span><span></span><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+            <div class="cfg-row"><span class="lb">Bounce retry limit</span><input class="f" value="3"><span></span></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="sh"><h3>Emma's thresholds</h3></div>
+          <div class="body">
+            <div class="cfg-row"><span class="lb">Auto-approve limit</span><input class="f" value="$5,000"><span></span></div>
+            <div class="cfg-row"><span class="lb">PDF confidence min</span><input class="f" value="0.85"><span></span></div>
+            <div class="cfg-row"><span class="lb">Payment match confidence</span><input class="f" value="0.85"><span></span></div>
+            <div class="cfg-row"><span class="lb">Unmatched escalation age</span><input class="f" value="48h"><span></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sh"><h3>HubSpot field mapping</h3><span class="desc">· map HubSpot deal fields to invoice fields</span></div>
+        <div class="body padless">
+          <table class="t">
+            <thead><tr><th>HubSpot field</th><th>Invoice field</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">deal.amount</td><td class="mono">invoice.subtotal</td></tr>
+              <tr><td class="mono">deal.line_items[]</td><td class="mono">invoice.line_items[]</td></tr>
+              <tr><td class="mono">company.name</td><td class="mono">invoice.bill_to.name</td></tr>
+              <tr><td class="mono">company.billing_address</td><td class="mono">invoice.bill_to.address</td></tr>
+              <tr><td class="mono">company.tax_id</td><td class="mono">invoice.bill_to.tax_id</td></tr>
+              <tr><td class="mono">primary_contact.email</td><td class="mono">invoice.deliver_to.email</td></tr>
+              <tr><td class="mono">deal.payment_terms</td><td class="mono">invoice.due_date</td></tr>
+              <tr><td class="mono">deal.currency</td><td class="mono">invoice.currency</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    </div>
+  </main>
+
+</div>
+
+<!-- ==================== DRAWER ==================== -->
+<div class="drawer-backdrop" id="drawerBd" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="dh">
+    <div>
+      <h2 id="drawerTitle">Detail</h2>
+      <div class="dsub" id="drawerSub"></div>
+    </div>
+    <button class="x" onclick="closeDrawer()" title="Close · Esc">×</button>
+  </div>
+  <div class="db" id="drawerBody"></div>
+  <div class="df" id="drawerFoot"></div>
+</div>
+
+<!-- ==================== CONTRACT PDF MODAL ==================== -->
+<div class="pdf-modal-bd" id="pdfModalBd" onclick="if(event.target===this)closeContractModal()">
+  <div class="pdf-modal" role="dialog" aria-modal="true">
+    <div class="pmh">
+      <span class="fn" id="pdfModalFn">contract.pdf</span>
+      <button class="x" onclick="closeContractModal()" title="Close">×</button>
+    </div>
+    <div class="pmb" id="pdfModalBody"></div>
+    <div class="pmf">
+      <span class="pg" id="pdfModalPages">Page 1 of 1</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn sm" onclick="toast('success','Previous page')">Prev</button>
+        <button class="btn sm" onclick="toast('success','Next page')">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TOAST ==================== -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   DATA
+   ===================================================================== */
+const CUSTOMERS = ['Acme Corp','Meridian Industries','NorthPeak Analytics','Bluewave Robotics','Catalyst Ventures','Sagebrush Media','Vantage Technology','Riverline Holdings','Stellar Systems','Halcyon Group','Ironclad Software','Prism Consulting','Lodestone Partners','Quantum Bridge','Apex Analytics'];
+
+const PIPELINE_STAGES = [
+  {k:'trigger',   n:'1. Trigger detected'},
+  {k:'extract',   n:'2. PDF extract'},
+  {k:'draft',     n:'3. Invoice draft'},
+  {k:'approval',  n:'4. Approval'},
+  {k:'sent',      n:'5. Sent'},
+  {k:'tracking',  n:'6. Payment tracking'},
+  {k:'paid',      n:'7. Paid'},
+];
+
+const DEALS = [
+  {id:'HS-9128', c:'Acme Corp',            amt:47000,  stage:'approval', days:1,  prio:'high',   owner:'Alex Rivera',   terms:'Net 30', extractedAt:'Sep 15, 06:12', conf:0.94,
+    contract:{filename:'Rally-Acme-Corp-MSA-2026-09.pdf', signed_date:'Sep 03, 2026', pages:8, size_kb:247, party_from:'Rally UXR', party_from_domain:'goaltegic.com', party_to:'Acme Corp', party_to_domain:'acmecorp.com', signatories:['Tara Sen','John Patel'],
+     mock_body:'This Master Services Agreement is entered into by Rally UXR ("Provider") and Acme Corp ("Client") for the provision of user research services. Total contract value is forty-seven thousand US dollars ($47,000), invoiced Net 30 upon deal close. Scope includes moderated interviews with up to twelve target participants, synthesis, and a final readout deck. Payment schedule: single invoice at kickoff, due within thirty (30) days of receipt. Client may terminate for convenience with fifteen (15) days written notice; unbilled work through the notice date remains payable. Confidentiality obligations survive termination for three (3) years. Governing law: State of California.'}},
+  {id:'HS-9127', c:'Bluewave Robotics',    amt:28000,  stage:'approval', days:1,  prio:'med',    owner:'Jamie Wu',      terms:'Net 45', extractedAt:'Sep 15, 05:48', conf:0.91,
+    contract:{filename:'Rally-Bluewave-Robotics-SOW-2026-09.pdf', signed_date:'Sep 04, 2026', pages:6, size_kb:198, party_from:'Rally UXR', party_from_domain:'goaltegic.com', party_to:'Bluewave Robotics', party_to_domain:'bluewaverobotics.com', signatories:['Tara Sen','Marcus Lee'],
+     mock_body:'This Statement of Work is entered into by Rally UXR ("Provider") and Bluewave Robotics ("Client") for a diary study and usability review of the WaveNav mobile app. Total contract value is twenty-eight thousand US dollars ($28,000), payable Net 45 from invoice date. Deliverables include a two-week remote diary study, three synthesis workshops, and a written recommendations report. Timeline is eight weeks from kickoff. Client may request one round of revisions on the final deliverable at no additional charge. Governing law: State of California.'}},
+  {id:'HS-9126', c:'NorthPeak Analytics',  amt:12500,  stage:'sent',     days:0,  prio:'low',    owner:'Alex Rivera',   terms:'Net 30', extractedAt:'Sep 15, 04:30', conf:0.97,
+    contract:{filename:'Rally-NorthPeak-Retainer-2026-09.pdf', signed_date:'Sep 01, 2026', pages:5, size_kb:172, party_from:'Rally UXR', party_from_domain:'goaltegic.com', party_to:'NorthPeak Analytics', party_to_domain:'northpeak.io', signatories:['Tara Sen','Elena Kwon'],
+     mock_body:'This retainer amendment is entered into by Rally UXR ("Provider") and NorthPeak Analytics ("Client"). Effective September 1, 2026, the retainer level is set at twelve thousand five hundred US dollars ($12,500) per month, invoiced Net 30 on the first business day of each month. Retainer covers up to forty (40) research hours per month; unused hours do not roll over. Either party may terminate at the end of a calendar quarter with thirty (30) days written notice. All prior confidentiality and IP terms remain in force. Governing law: State of California.'}},
+  {id:'HS-9124', c:'Catalyst Ventures',    amt:82000,  stage:'approval', days:2,  prio:'high',   owner:'Sam Ortiz',     terms:'Net 30', extractedAt:'Sep 13, 14:22', conf:0.88},
+  {id:'HS-9122', c:'Meridian Industries',  amt:28000,  stage:'tracking', days:12, prio:'high',   owner:'Riya Menon',    terms:'Net 30', extractedAt:'Sep 03, 09:15', conf:0.92},
+  {id:'HS-9121', c:'Sagebrush Media',      amt:4200,   stage:'sent',     days:2,  prio:'low',    owner:'Alex Rivera',   terms:'Net 15', extractedAt:'Sep 13, 10:00', conf:0.99},
+  {id:'HS-9120', c:'Vantage Technology',   amt:156000, stage:'approval', days:3,  prio:'high',   owner:'Jamie Wu',      terms:'Net 45', extractedAt:'Sep 12, 16:40', conf:0.86},
+  {id:'HS-9119', c:'Riverline Holdings',   amt:9500,   stage:'draft',    days:0,  prio:'low',    owner:'Sam Ortiz',     terms:'Net 30', extractedAt:'Sep 15, 07:00', conf:0.95},
+  {id:'HS-9117', c:'Stellar Systems',      amt:64000,  stage:'tracking', days:8,  prio:'med',    owner:'Riya Menon',    terms:'Net 30', extractedAt:'Sep 07, 11:30', conf:0.90},
+  {id:'HS-9115', c:'Halcyon Group',        amt:3200,   stage:'paid',     days:15, prio:'low',    owner:'Alex Rivera',   terms:'Net 15', extractedAt:'Aug 31, 09:00', conf:0.98},
+  {id:'HS-9114', c:'Ironclad Software',    amt:38000,  stage:'tracking', days:20, prio:'med',    owner:'Jamie Wu',      terms:'Net 30', extractedAt:'Aug 26, 13:15', conf:0.93},
+  {id:'HS-9113', c:'Prism Consulting',     amt:18500,  stage:'sent',     days:5,  prio:'med',    owner:'Sam Ortiz',     terms:'Net 30', extractedAt:'Sep 10, 08:20', conf:0.96},
+  {id:'HS-9111', c:'Lodestone Partners',   amt:295000, stage:'approval', days:5,  prio:'high',   owner:'Riya Menon',    terms:'Net 60', extractedAt:'Sep 10, 15:00', conf:0.87},
+  {id:'HS-9110', c:'Quantum Bridge',       amt:14200,  stage:'draft',    days:1,  prio:'low',    owner:'Alex Rivera',   terms:'Net 30', extractedAt:'Sep 15, 03:14', conf:0.92},
+  {id:'HS-9109', c:'Apex Analytics',       amt:22000,  stage:'trigger',  days:0,  prio:'med',    owner:'Jamie Wu',      terms:'—',      extractedAt:'—',              conf:0},
+  {id:'HS-9108', c:'Acme Corp',            amt:8800,   stage:'extract',  days:0,  prio:'low',    owner:'Alex Rivera',   terms:'—',      extractedAt:'Sep 15, 07:22', conf:0.72},
+  {id:'HS-9106', c:'Bluewave Robotics',    amt:5100,   stage:'trigger',  days:0,  prio:'low',    owner:'Sam Ortiz',     terms:'—',      extractedAt:'—',              conf:0},
+];
+
+const APPROVALS = [
+  {inv:'INV-2026-09-1204', c:'Acme Corp',           amt:47000,  deal:'HS-9128', approver:'Tom Chen',    age:12, esc:'in 36h (CFO)'},
+  {inv:'INV-2026-09-1203', c:'Bluewave Robotics',   amt:28000,  deal:'HS-9127', approver:'Jamie Wu',    age:14, esc:'in 10h (finance)'},
+  {inv:'INV-2026-09-1201', c:'Catalyst Ventures',   amt:82000,  deal:'HS-9124', approver:'Tom Chen',    age:36, esc:'in 12h (CFO)'},
+  {inv:'INV-2026-09-1199', c:'Vantage Technology',  amt:156000, deal:'HS-9120', approver:'Tom Chen',    age:60, esc:'overdue (CFO)'},
+  {inv:'INV-2026-09-1195', c:'Lodestone Partners',  amt:295000, deal:'HS-9111', approver:'Priya Patel', age:72, esc:'CFO hold'},
+  {inv:'INV-2026-09-1189', c:'Sagebrush Media',     amt:4200,   deal:'HS-9121', approver:'Emma (auto)', age:2,  esc:'—'},
+  {inv:'INV-2026-09-1188', c:'Prism Consulting',    amt:18500,  deal:'HS-9113', approver:'Sam Ortiz',   age:8,  esc:'in 16h (finance)'},
+  {inv:'INV-2026-09-1184', c:'Riverline Holdings',  amt:9500,   deal:'HS-9119', approver:'Sam Ortiz',   age:4,  esc:'in 20h (finance)'},
+];
+
+function amtTier(a){
+  if(a<5000) return 'green';
+  if(a<50000) return 'amber';
+  if(a<250000) return 'orange';
+  return 'red';
+}
+function amtTierLabel(a){
+  if(a<5000) return 'auto';
+  if(a<50000) return 'deal owner';
+  if(a<250000) return 'finance lead';
+  return 'CFO';
+}
+function money(n){ return '$'+n.toLocaleString(); }
+
+const CASH_MATCHED = [
+  {qb:'QB-P-88214',c:'Halcyon Group',      amt:3200,  inv:'INV-2026-08-0912', conf:0.99, when:'Sep 14 · 15:22'},
+  {qb:'QB-P-88213',c:'NorthPeak Analytics',amt:12500, inv:'INV-2026-09-1187', conf:0.98, when:'Sep 14 · 11:04'},
+  {qb:'QB-P-88211',c:'Prism Consulting',   amt:9200,  inv:'INV-2026-08-0908', conf:0.96, when:'Sep 13 · 14:41'},
+  {qb:'QB-P-88208',c:'Sagebrush Media',    amt:4200,  inv:'INV-2026-09-1189', conf:0.99, when:'Sep 13 · 09:10'},
+  {qb:'QB-P-88205',c:'Bluewave Robotics',  amt:18000, inv:'INV-2026-08-0891', conf:0.94, when:'Sep 12 · 16:33'},
+  {qb:'QB-P-88203',c:'Ironclad Software',  amt:15000, inv:'INV-2026-07-0872', conf:0.97, when:'Sep 12 · 08:00'},
+  {qb:'QB-P-88201',c:'Riverline Holdings', amt:6500,  inv:'INV-2026-08-0902', conf:0.95, when:'Sep 11 · 17:52'},
+  {qb:'QB-P-88198',c:'Catalyst Ventures',  amt:38000, inv:'INV-2026-07-0866', conf:0.93, when:'Sep 11 · 12:12'},
+  {qb:'QB-P-88195',c:'Stellar Systems',    amt:64000, inv:'INV-2026-08-0899', conf:0.98, when:'Sep 10 · 13:44'},
+  {qb:'QB-P-88192',c:'Vantage Technology', amt:44000, inv:'INV-2026-07-0851', conf:0.96, when:'Sep 10 · 08:20'},
+  {qb:'QB-P-88189',c:'Halcyon Group',      amt:2400,  inv:'INV-2026-08-0904', conf:0.99, when:'Sep 09 · 15:15'},
+  {qb:'QB-P-88187',c:'Meridian Industries',amt:22000, inv:'INV-2026-07-0844', conf:0.92, when:'Sep 08 · 11:00'},
+  {qb:'QB-P-88184',c:'Quantum Bridge',     amt:8000,  inv:'INV-2026-08-0888', conf:0.94, when:'Sep 08 · 09:30'},
+  {qb:'QB-P-88181',c:'Apex Analytics',     amt:11500, inv:'INV-2026-08-0879', conf:0.96, when:'Sep 07 · 16:40'},
+  {qb:'QB-P-88178',c:'Lodestone Partners', amt:82000, inv:'INV-2026-06-0812', conf:0.91, when:'Sep 07 · 13:25'},
+];
+const CASH_UNMATCHED = [
+  {qb:'QB-P-88220',c:'unknown (memo: "wire ref 4412")',amt:14000,inv:'—',conf:0.62,when:'Sep 15 · 06:44', cands:['INV-2026-09-1189 · Sagebrush $4.2K','INV-2026-08-0879 · Apex $11.5K','INV-2026-08-0891 · Bluewave $18K']},
+  {qb:'QB-P-88219',c:'Meridian Ind (partial name)',   amt:22500,inv:'—',conf:0.71,when:'Sep 14 · 22:15', cands:['INV-2026-08-0891 · Meridian $28K','INV-2026-07-0844 · Meridian $22K','INV-2026-06-0820 · Meridian $22.5K']},
+  {qb:'QB-P-88217',c:'unknown wire',                  amt:5600, inv:'—',conf:0.55,when:'Sep 14 · 09:12', cands:['INV-2026-08-0902 · Riverline $6.5K','INV-2026-09-1189 · Sagebrush $4.2K','INV-2026-07-0851 · Vantage $5.6K']},
+  {qb:'QB-P-88215',c:'ACME (multiple invoices open)', amt:47000,inv:'—',conf:0.78,when:'Sep 14 · 07:40', cands:['INV-2026-09-1204 · Acme $47K','INV-2026-08-0908 · Prism $9.2K','INV-2026-07-0851 · Vantage $44K']},
+];
+const CASH_PARTIAL = [
+  {qb:'QB-P-88175',c:'Ironclad Software',   amt:20000, inv:'INV-2026-08-0891', due:38000, conf:0.98, when:'Sep 05 · 10:10'},
+  {qb:'QB-P-88170',c:'Catalyst Ventures',   amt:15000, inv:'INV-2026-07-0862', due:82000, conf:0.94, when:'Sep 03 · 14:55'},
+  {qb:'QB-P-88164',c:'Lodestone Partners',  amt:100000,inv:'INV-2026-06-0812', due:295000,conf:0.96, when:'Aug 31 · 08:20'},
+];
+
+const DUNNING_STAGES = ['Reminder','First notice','Second notice','Final demand','Escalated','Writeoff review'];
+const COLLECTIONS = [
+  {c:'Meridian Industries', inv:'INV-2026-08-0891', amt:28000, dpd:22, stage:'Second notice', paused:true, dispute:true},
+  {c:'Ironclad Software',   inv:'INV-2026-07-0872', amt:15000, dpd:14, stage:'First notice'},
+  {c:'Catalyst Ventures',   inv:'INV-2026-06-0812', amt:67000, dpd:52, stage:'Final demand'},
+  {c:'Vantage Technology',  inv:'INV-2026-05-0721', amt:44000, dpd:92, stage:'Writeoff review'},
+  {c:'Riverline Holdings',  inv:'INV-2026-08-0902', amt:6500,  dpd:6,  stage:'Reminder'},
+  {c:'Bluewave Robotics',   inv:'INV-2026-08-0912', amt:11000, dpd:9,  stage:'First notice'},
+  {c:'Quantum Bridge',      inv:'INV-2026-07-0844', amt:14200, dpd:35, stage:'Second notice'},
+  {c:'Stellar Systems',     inv:'INV-2026-06-0820', amt:22500, dpd:48, stage:'Final demand'},
+  {c:'NorthPeak Analytics', inv:'INV-2026-07-0866', amt:8800,  dpd:15, stage:'First notice'},
+  {c:'Halcyon Group',       inv:'INV-2026-08-0904', amt:2400,  dpd:4,  stage:'Reminder'},
+  {c:'Apex Analytics',      inv:'INV-2026-06-0801', amt:12000, dpd:72, stage:'Escalated'},
+  {c:'Prism Consulting',    inv:'INV-2026-08-0908', amt:9200,  dpd:11, stage:'First notice'},
+];
+
+const INCIDENT_TYPES = [
+  'deal_closed_received','deal_missing_signed_pdf','deal_ambiguous_pdf','deal_low_confidence_extraction',
+  'invoice_created','invoice_awaiting_approval','invoice_rejected','invoice_delivery_failed','invoice_sent',
+  'payment_received','payment_unmatched','payment_overpaid','payment_underpaid',
+  'dunning_stage_advance','collections_escalation_required','writeoff_candidate','invoice_dispute'
+];
+
+const INCIDENTS = [
+  {id:'INC-4419', type:'invoice_dispute',              c:'Meridian Industries', st:'held_for_review',   h:'Emma', age:'4h',  src:'Email reply from ap@meridian.com',                     amt:28000, inv:'INV-2026-08-0891', deal:'HS-9122'},
+  {id:'INC-4418', type:'invoice_awaiting_approval',    c:'Acme Corp',           st:'awaiting_approval', h:'Tom Chen',age:'12h', src:'Threshold matrix ($5-50K deal owner)',                 amt:47000, inv:'INV-2026-09-1204', deal:'HS-9128'},
+  {id:'INC-4417', type:'payment_unmatched',            c:'Unknown wire',        st:'held_for_review',   h:'Emma', age:'9h',  src:'QuickBooks payment event',                             amt:14000, inv:'—',                 deal:'—'},
+  {id:'INC-4416', type:'payment_unmatched',            c:'Meridian Industries', st:'held_for_review',   h:'Emma', age:'17h', src:'QuickBooks payment event',                             amt:22500, inv:'—',                 deal:'—'},
+  {id:'INC-4415', type:'deal_missing_signed_pdf',      c:'Apex Analytics',      st:'held_for_review',   h:'Jamie Wu', age:'3h',src:'HubSpot deal.propertyChange webhook',                 amt:22000, inv:'—',                 deal:'HS-9109'},
+  {id:'INC-4414', type:'deal_low_confidence_extraction',c:'Acme Corp',          st:'held_for_review',   h:'Emma', age:'2h',  src:'PDF OCR confidence 0.72 (below 0.85)',                amt:8800,  inv:'—',                 deal:'HS-9108'},
+  {id:'INC-4412', type:'writeoff_candidate',           c:'Vantage Technology',  st:'held_for_review',   h:'Tom Chen',age:'1d',src:'Dunning stage: writeoff_review (DPD 92)',              amt:44000, inv:'INV-2026-05-0721', deal:'—'},
+  {id:'INC-4411', type:'collections_escalation_required',c:'Apex Analytics',    st:'held_for_review',   h:'Tom Chen',age:'12d',src:'Dunning stage: escalated (DPD 72)',                   amt:12000, inv:'INV-2026-06-0801', deal:'—'},
+  {id:'INC-4410', type:'invoice_delivery_failed',      c:'Sagebrush Media',     st:'held_for_review',   h:'Emma', age:'6h',  src:'SMTP bounce · mailbox full',                           amt:4200,  inv:'INV-2026-09-1189', deal:'HS-9121'},
+  {id:'INC-4409', type:'payment_overpaid',             c:'Halcyon Group',       st:'held_for_review',   h:'Emma', age:'22h', src:'QB payment $3,400 · invoice $3,200',                   amt:3400,  inv:'INV-2026-08-0912', deal:'HS-9115'},
+  {id:'INC-4408', type:'invoice_rejected',             c:'Catalyst Ventures',   st:'held_for_review',   h:'Emma', age:'1d',  src:'Approver rejected: "line item 3 wrong quantity"',      amt:82000, inv:'INV-2026-09-1201', deal:'HS-9124'},
+  {id:'INC-4407', type:'deal_ambiguous_pdf',           c:'Bluewave Robotics',   st:'held_for_review',   h:'Sam Ortiz',age:'8h',src:'2 signed PDFs found on deal record',                 amt:5100,  inv:'—',                 deal:'HS-9106'},
+  {id:'INC-4406', type:'dunning_stage_advance',        c:'Ironclad Software',   st:'resolved',          h:'Emma', age:'today',src:'Auto-advance · Day 8 first notice',                   amt:15000, inv:'INV-2026-07-0872', deal:'—'},
+  {id:'INC-4405', type:'invoice_sent',                 c:'NorthPeak Analytics', st:'resolved',          h:'Emma', age:'today',src:'Auto-send after approval',                            amt:12500, inv:'INV-2026-09-1187', deal:'HS-9126'},
+  {id:'INC-4404', type:'payment_received',             c:'Stellar Systems',     st:'resolved',          h:'Emma', age:'2d',  src:'QB webhook · matched by memo',                         amt:64000, inv:'INV-2026-08-0899', deal:'HS-9117'},
+];
+
+function nowStamp(mOffset=0){
+  const d=new Date(2026,8,15,10,15);
+  d.setMinutes(d.getMinutes()-mOffset);
+  const p=n=>String(n).padStart(2,'0');
+  return `2026-09-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+const AUDIT = [
+  {ts:nowStamp(2),  ev:'invoice_awaiting_approval', ent:'invoice',actor:'Emma',target:'INV-2026-09-1204', rationale:'Amount $47K > $5K auto-approve threshold'},
+  {ts:nowStamp(8),  ev:'invoice_created',           ent:'invoice',actor:'Emma',target:'INV-2026-09-1204', rationale:'Generated from HS-9128 · Acme Corp'},
+  {ts:nowStamp(11), ev:'deal_pdf_extracted',        ent:'deal',   actor:'Emma',target:'HS-9128',          rationale:'OCR confidence 0.94 · 4 line items'},
+  {ts:nowStamp(15), ev:'deal_closed_received',      ent:'deal',   actor:'system',target:'HS-9128',        rationale:'HubSpot webhook · dealstage→closedwon'},
+  {ts:nowStamp(35), ev:'invoice_dispute',           ent:'invoice',actor:'Emma',target:'INV-2026-08-0891', rationale:'Reply classifier detected dispute intent'},
+  {ts:nowStamp(35), ev:'collections_cadence_paused',ent:'invoice',actor:'Emma',target:'INV-2026-08-0891', rationale:'Dispute detected · cadence paused pending review'},
+  {ts:nowStamp(60), ev:'dunning_stage_advance',     ent:'invoice',actor:'Emma',target:'INV-2026-07-0872', rationale:'DPD 8 · first_notice sent per default cadence'},
+  {ts:nowStamp(72), ev:'invoice_sent',              ent:'invoice',actor:'Emma',target:'INV-2026-09-1187', rationale:'Auto-sent after approval by Tom Chen'},
+  {ts:nowStamp(75), ev:'invoice_approved',          ent:'invoice',actor:'Tom Chen',target:'INV-2026-09-1187', rationale:'Approved by finance lead (matrix tier 3)'},
+  {ts:nowStamp(90), ev:'payment_unmatched',         ent:'payment',actor:'Emma',target:'QB-P-88220',       rationale:'Fuzzy match confidence 0.62 (below 0.85)'},
+  {ts:nowStamp(120),ev:'payment_received',          ent:'payment',actor:'system',target:'QB-P-88214',     rationale:'QB webhook · applied to INV-2026-08-0912'},
+  {ts:nowStamp(122),ev:'payment_applied',           ent:'payment',actor:'Emma',target:'QB-P-88214',       rationale:'Auto-applied · confidence 0.99'},
+  {ts:nowStamp(180),ev:'invoice_overpaid',          ent:'invoice',actor:'Emma',target:'INV-2026-08-0912', rationale:'Payment $3,400 vs invoice $3,200 · $200 credit'},
+  {ts:nowStamp(240),ev:'deal_missing_signed_pdf',   ent:'deal',   actor:'Emma',target:'HS-9109',          rationale:'No signed_agreement file on deal record'},
+  {ts:nowStamp(280),ev:'invoice_delivery_failed',   ent:'invoice',actor:'system',target:'INV-2026-09-1189',rationale:'SMTP bounce · mailbox full'},
+  {ts:nowStamp(320),ev:'invoice_rejected',          ent:'invoice',actor:'Sam Ortiz',target:'INV-2026-09-1201',rationale:'Line item 3 quantity wrong'},
+  {ts:nowStamp(380),ev:'invoice_sent',              ent:'invoice',actor:'Emma',target:'INV-2026-09-1189', rationale:'Auto-sent after approval'},
+  {ts:nowStamp(420),ev:'invoice_approved',          ent:'invoice',actor:'Emma',target:'INV-2026-09-1189', rationale:'Amount $4.2K under $5K · auto-approved'},
+  {ts:nowStamp(460),ev:'deal_pdf_extracted',        ent:'deal',   actor:'Emma',target:'HS-9121',          rationale:'OCR confidence 0.99'},
+  {ts:nowStamp(500),ev:'deal_closed_received',      ent:'deal',   actor:'system',target:'HS-9121',        rationale:'HubSpot polling · closedate updated'},
+  {ts:nowStamp(720),ev:'invoice_sent',              ent:'invoice',actor:'Emma',target:'INV-2026-09-1187', rationale:'Portal delivery · Chargebee ack received'},
+  {ts:nowStamp(760),ev:'invoice_created',           ent:'invoice',actor:'Emma',target:'INV-2026-09-1187', rationale:'Auto-approved · under $5K'},
+  {ts:nowStamp(900),ev:'writeoff_candidate',        ent:'invoice',actor:'Emma',target:'INV-2026-05-0721', rationale:'DPD 90 · writeoff_review triggered'},
+  {ts:nowStamp(1200),ev:'collections_escalation_required',ent:'invoice',actor:'Emma',target:'INV-2026-06-0801', rationale:'DPD 60 · escalated to human'},
+  {ts:nowStamp(1440),ev:'payment_applied',          ent:'payment',actor:'Emma',target:'QB-P-88195',       rationale:'Applied $64K to INV-2026-08-0899 (Stellar)'},
+  {ts:nowStamp(1500),ev:'invoice_voided',           ent:'invoice',actor:'Riya Menon',target:'INV-2026-07-0866-v1', rationale:'Superseded by v2 (line item correction)'},
+  {ts:nowStamp(1560),ev:'invoice_created',          ent:'invoice',actor:'Emma',target:'INV-2026-07-0866-v2', rationale:'Revised after rejection · v2'},
+  {ts:nowStamp(1800),ev:'dunning_stage_advance',    ent:'invoice',actor:'Emma',target:'INV-2026-07-0844', rationale:'DPD 22 · second_notice sent · CC deal owner'},
+  {ts:nowStamp(2100),ev:'payment_partial_applied',  ent:'payment',actor:'Emma',target:'QB-P-88170',       rationale:'Applied $15K of $82K invoice (Catalyst)'},
+  {ts:nowStamp(2400),ev:'invoice_sent',             ent:'invoice',actor:'Emma',target:'INV-2026-08-0912', rationale:'Auto-sent to halcyon-ap@halcyon.com'},
+];
+
+/* =====================================================================
+   CLIENT-SCOPED DATA (Trade Space + Halcyon Events)
+   Rally UXR uses the default DEALS / APPROVALS / INCIDENTS / AUDIT.
+   ===================================================================== */
+const TRADE_DEALS = [
+  {id:'SF-TS-401', c:'University of Michigan · Ross', amt:34000, stage:'approval', days:1, prio:'high', owner:'Kai Peters',  terms:'Net 30', extractedAt:'Sep 15, 06:20', conf:0.93,
+    portal:{name:'Ariba',   org:'University of Michigan Procurement', status:'Pending',     ref:'ARB-U-M-88214', submittedAt:null},
+    contract:{filename:'TradeSpace-UMichRoss-PO-2026-09.pdf', signed_date:'Sep 12, 2026', pages:7, size_kb:221, party_from:'Trade Space', party_from_domain:'tradespace.io', party_to:'University of Michigan · Ross', party_to_domain:'umich.edu', signatories:['Kai Peters','Dr. Alan Cho'],
+     mock_body:'This Purchase Order and standard Terms and Conditions govern the sale of Trade Space seat licenses to University of Michigan Ross School of Business. Purchase order total is thirty-four thousand US dollars ($34,000), payable Net 30 from invoice receipt via the Ariba procurement portal. Order covers annual seat licenses for the Q4 2026 cohort. Standard Trade Space T&Cs apply, including a limitation of liability capped at fees paid over the trailing twelve months, mutual confidentiality, and data ownership provisions. Invoicing occurs upon punchout confirmation. Governing law: State of Michigan.'}},
+  {id:'SF-TS-398', c:'Stanford University · GSB',     amt:22000, stage:'sent',     days:2, prio:'med',  owner:'Kai Peters',  terms:'Net 45', extractedAt:'Sep 13, 15:00', conf:0.95,
+    portal:{name:'Jaggaer', org:'Stanford Procurement',              status:'In progress', ref:'JGR-STA-70012', submittedAt:'Sep 14, 08:11'},
+    contract:{filename:'TradeSpace-Stanford-GSB-PO-2026-09.pdf', signed_date:'Sep 10, 2026', pages:7, size_kb:214, party_from:'Trade Space', party_from_domain:'tradespace.io', party_to:'Stanford University · GSB', party_to_domain:'stanford.edu', signatories:['Kai Peters','Rebecca Ito'],
+     mock_body:'This Purchase Order and standard Terms and Conditions govern the sale of Trade Space program expansion licenses to Stanford Graduate School of Business. Purchase order total is twenty-two thousand US dollars ($22,000), payable Net 45 from invoice receipt via the Jaggaer procurement portal. Order covers program expansion seats for the Fall 2026 term. Standard Trade Space T&Cs apply. Invoicing occurs upon punchout confirmation. Governing law: State of California.'}},
+  {id:'SF-TS-395', c:'UT Austin · McCombs',           amt:47500, stage:'tracking', days:9, prio:'med',  owner:'Nina Patel',  terms:'Net 30', extractedAt:'Sep 06, 09:11', conf:0.91,
+    portal:{name:'Coupa',   org:'UT Austin Procurement',             status:'Confirmed',   ref:'COU-UT-55401', submittedAt:'Sep 07, 10:22'},
+    contract:{filename:'TradeSpace-UTAustin-McCombs-PO-2026-09.pdf', signed_date:'Sep 05, 2026', pages:8, size_kb:236, party_from:'Trade Space', party_from_domain:'tradespace.io', party_to:'UT Austin · McCombs', party_to_domain:'utexas.edu', signatories:['Nina Patel','Dr. Miguel Alvarado'],
+     mock_body:'This Purchase Order and standard Terms and Conditions govern the sale of Trade Space Cohort 2 licenses to UT Austin McCombs School of Business. Purchase order total is forty-seven thousand five hundred US dollars ($47,500), payable Net 30 from invoice receipt via the Coupa procurement portal. Order covers Cohort 2 seat licenses and onboarding services. Standard Trade Space T&Cs apply, including SLAs, data processing, and renewal terms. Governing law: State of Texas.'}},
+  {id:'SF-TS-394', c:'MIT Sloan',                     amt:18000, stage:'draft',    days:0, prio:'low',  owner:'Kai Peters',  terms:'Net 30', extractedAt:'Sep 15, 07:45', conf:0.94,
+    portal:{name:'Ariba',   org:'MIT Procurement Services',          status:'Pending',     ref:'—',            submittedAt:null},
+    contract:{filename:'TradeSpace-MIT-Sloan-PO-2026-09.pdf', signed_date:'Sep 14, 2026', pages:6, size_kb:189, party_from:'Trade Space', party_from_domain:'tradespace.io', party_to:'MIT Sloan', party_to_domain:'mit.edu', signatories:['Kai Peters','Prof. Hana Ito'],
+     mock_body:'This Purchase Order and standard Terms and Conditions govern the sale of Trade Space Q4 module licenses to MIT Sloan School of Management. Purchase order total is eighteen thousand US dollars ($18,000), payable Net 30 from invoice receipt via the Ariba procurement portal. Order covers the Q4 module fee for the Fall 2026 program. Standard Trade Space T&Cs apply. Governing law: Commonwealth of Massachusetts.'}}
+];
+
+const HALCYON_DEALS = [
+  {id:'DS-HL-207', c:'Vertex Summit 2026',       amt:148000, stage:'extract',  days:0,  prio:'high', owner:'Jules Ortega', terms:'Contract-scheduled', extractedAt:'Sep 15, 06:44', conf:0.96, progressive:true, sponsor:'Presenting sponsor · 5 invoices',
+    contract:{filename:'Halcyon-Vertex-Summit-Sponsorship-2026.pdf', signed_date:'Jun 02, 2026', pages:14, size_kb:412, party_from:'Halcyon Events', party_from_domain:'halcyon-events.com', party_to:'Vertex Summit 2026', party_to_domain:'vertexsummit.com', signatories:['Jules Ortega','Marta Reyes'],
+     mock_body:'This Event Sponsorship Agreement is entered into by Halcyon Events LLC ("Producer") and Vertex Summit 2026 ("Sponsor") for participation as Presenting Sponsor. Total sponsorship consideration is one hundred forty-eight thousand US dollars ($148,000), payable across five milestone invoices: a 25% deposit ($37,000) due June 15, 2026; a booth build milestone ($22,200) due August 15, 2026; a pre-event 50% balance ($37,000) due October 1, 2026; an onsite activation fee ($29,600) due November 5, 2026; and a post-event reporting invoice ($22,200) due December 1, 2026. Sponsor benefits include mainstage keynote, top-tier logo placement, ten VIP passes, and a 20x20 exhibit floor footprint. Cancellation prior to August 1, 2026 forfeits the deposit; cancellation after August 1, 2026 forfeits the full committed amount. Governing law: State of New York.'}},
+  {id:'DS-HL-205', c:'FinTech Forward Chicago',  amt:82000,  stage:'tracking', days:14, prio:'med',  owner:'Jules Ortega', terms:'Contract-scheduled', extractedAt:'Sep 01, 14:30', conf:0.94, progressive:true, sponsor:'Gold sponsor · 4 invoices',
+    contract:{filename:'Halcyon-FinTech-Forward-Sponsorship-2026.pdf', signed_date:'Jul 08, 2026', pages:11, size_kb:308, party_from:'Halcyon Events', party_from_domain:'halcyon-events.com', party_to:'FinTech Forward Chicago', party_to_domain:'fintechforward.io', signatories:['Jules Ortega','Devin Park'],
+     mock_body:'This Sponsorship Agreement is entered into by Halcyon Events LLC ("Producer") and FinTech Forward Chicago ("Sponsor") for Gold Sponsor participation. Total consideration is eighty-two thousand US dollars ($82,000), payable across four milestone invoices: a 30% deposit ($24,600) due July 20, 2026; a signage milestone ($16,400) due August 30, 2026; an onsite activation invoice ($24,600) due October 15, 2026; and a post-event balance ($16,400) due November 15, 2026. Sponsor receives a breakout stage session, six VIP passes, a 10x20 exhibit footprint, and inclusion in the attendee mobile app. Force majeure clauses apply to weather and public health events. Governing law: State of Illinois.'}},
+  {id:'DS-HL-203', c:'DesignOps Next NYC',       amt:64000,  stage:'draft',    days:1,  prio:'low',  owner:'Jules Ortega', terms:'Contract-scheduled', extractedAt:'Sep 14, 11:12', conf:0.92, progressive:true, sponsor:'Silver sponsor · 3 invoices',
+    contract:{filename:'Halcyon-DesignOps-Next-Sponsorship-2026.pdf', signed_date:'Sep 10, 2026', pages:9, size_kb:264, party_from:'Halcyon Events', party_from_domain:'halcyon-events.com', party_to:'DesignOps Next NYC', party_to_domain:'designopsnext.com', signatories:['Jules Ortega','Priya Shah'],
+     mock_body:'This Sponsorship Agreement is entered into by Halcyon Events LLC ("Producer") and DesignOps Next NYC ("Sponsor") for Silver Sponsor participation. Total consideration is sixty-four thousand US dollars ($64,000), payable across three milestone invoices: a 30% deposit ($19,200) due September 25, 2026; an onsite activation invoice ($32,000) due November 20, 2026; and a post-event balance ($12,800) due December 15, 2026. Sponsor benefits include a lightning talk slot, four VIP passes, a 10x10 exhibit footprint, and social channel promotion. Refund and cancellation policies mirror the standard Halcyon rider. Governing law: State of New York.'}}
+];
+
+const HALCYON_SCHEDULE = {
+  'DS-HL-207':[
+    {n:'INV-VS-01', label:'Deposit · 25%',           due:'2026-06-15', amt:37000, status:'Paid'},
+    {n:'INV-VS-02', label:'Booth build milestone',   due:'2026-08-15', amt:22200, status:'Paid'},
+    {n:'INV-VS-03', label:'Pre-event 50% balance',   due:'2026-10-01', amt:37000, status:'Sent'},
+    {n:'INV-VS-04', label:'Onsite activation fee',   due:'2026-11-05', amt:29600, status:'Scheduled'},
+    {n:'INV-VS-05', label:'Post-event reporting',    due:'2026-12-01', amt:22200, status:'Scheduled'}
+  ],
+  'DS-HL-205':[
+    {n:'INV-FF-01', label:'Deposit · 30%',           due:'2026-07-20', amt:24600, status:'Paid'},
+    {n:'INV-FF-02', label:'Signage milestone',       due:'2026-08-30', amt:16400, status:'Paid'},
+    {n:'INV-FF-03', label:'Onsite activation',       due:'2026-10-15', amt:24600, status:'Sent'},
+    {n:'INV-FF-04', label:'Post-event balance',      due:'2026-11-15', amt:16400, status:'Scheduled'}
+  ],
+  'DS-HL-203':[
+    {n:'INV-DN-01', label:'Deposit · 30%',           due:'2026-09-25', amt:19200, status:'Draft'},
+    {n:'INV-DN-02', label:'Onsite activation',       due:'2026-11-20', amt:32000, status:'Scheduled'},
+    {n:'INV-DN-03', label:'Post-event balance',      due:'2026-12-15', amt:12800, status:'Scheduled'}
+  ]
+};
+
+const TRADE_APPROVALS = [
+  {inv:'INV-TS-2026-034', c:'University of Michigan · Ross', amt:34000, deal:'SF-TS-401', approver:'Tom Chen',  age:10, esc:'in 38h (finance)'},
+  {inv:'INV-TS-2026-031', c:'MIT Sloan',                     amt:18000, deal:'SF-TS-394', approver:'Kai Peters',age:4,  esc:'in 20h (finance)'}
+];
+const HALCYON_APPROVALS = [
+  {inv:'INV-VS-03',       c:'Vertex Summit 2026',       amt:37000, deal:'DS-HL-207', approver:'Tom Chen',    age:6, esc:'in 42h (finance)'},
+  {inv:'INV-DN-01',       c:'DesignOps Next NYC',       amt:19200, deal:'DS-HL-203', approver:'Jules Ortega',age:2, esc:'in 22h (finance)'}
+];
+
+const TRADE_COLLECTIONS = [
+  {c:'UT Austin · McCombs',      inv:'INV-TS-2026-018', amt:47500, dpd:9,  stage:'First notice'},
+  {c:'Boston University',        inv:'INV-TS-2026-014', amt:28000, dpd:24, stage:'Second notice'}
+];
+const HALCYON_COLLECTIONS = [
+  {c:'FinTech Forward Chicago',  inv:'INV-FF-03', amt:24600, dpd:2, stage:'Reminder'}
+];
+
+const TRADE_INCIDENTS = [
+  {id:'INC-T-2201', type:'portal_upload_pending',      c:'University of Michigan · Ross', st:'held_for_review',   h:'Emma',       age:'2h', src:'Ariba portal · awaiting punchout confirmation',        amt:34000, inv:'INV-TS-2026-034', deal:'SF-TS-401'},
+  {id:'INC-T-2198', type:'portal_upload_failed',       c:'Boston University',             st:'held_for_review',   h:'Kai Peters', age:'1d', src:'Coupa portal · PO mismatch on line item 2',            amt:28000, inv:'INV-TS-2026-014', deal:'SF-TS-390'},
+  {id:'INC-T-2196', type:'invoice_awaiting_approval',  c:'University of Michigan · Ross', st:'awaiting_approval', h:'Tom Chen',   age:'10h',src:'Threshold matrix ($5-50K deal owner)',                 amt:34000, inv:'INV-TS-2026-034', deal:'SF-TS-401'}
+];
+const HALCYON_INCIDENTS = [
+  {id:'INC-H-4110', type:'contract_schedule_parsed',   c:'Vertex Summit 2026',   st:'held_for_review',   h:'Emma',        age:'3h', src:'DocuSign · sponsorship contract parsed to 5-invoice schedule', amt:148000, inv:'—',       deal:'DS-HL-207'},
+  {id:'INC-H-4109', type:'invoice_awaiting_approval',  c:'DesignOps Next NYC',   st:'awaiting_approval', h:'Jules Ortega',age:'2h', src:'Threshold matrix ($5-50K deal owner)',                          amt:19200,  inv:'INV-DN-01',deal:'DS-HL-203'},
+  {id:'INC-H-4107', type:'scheduled_invoice_due',      c:'FinTech Forward Chicago', st:'resolved',       h:'Emma',        age:'today',src:'Contract schedule · milestone INV-FF-03 due today',            amt:24600,  inv:'INV-FF-03',deal:'DS-HL-205'}
+];
+
+const TRADE_AUDIT = [
+  {ts:nowStamp(4),   ev:'portal_upload_pending',   ent:'invoice',actor:'Emma',    target:'INV-TS-2026-034', rationale:'Detected Ariba portal for University of Michigan procurement'},
+  {ts:nowStamp(6),   ev:'invoice_created',         ent:'invoice',actor:'Emma',    target:'INV-TS-2026-034', rationale:'Generated from SF-TS-401 · Salesforce deal close'},
+  {ts:nowStamp(20),  ev:'portal_upload_confirmed', ent:'invoice',actor:'Emma',    target:'INV-TS-2026-018', rationale:'Coupa punchout confirmed · UT Austin PO matched'},
+  {ts:nowStamp(140), ev:'invoice_created',         ent:'invoice',actor:'Emma',    target:'INV-TS-2026-018', rationale:'Generated from SF-TS-395 · portal upload queued'}
+];
+const HALCYON_AUDIT = [
+  {ts:nowStamp(5),   ev:'contract_schedule_parsed', ent:'deal',   actor:'Emma',   target:'DS-HL-207',        rationale:'Parsed sponsorship contract into 5 scheduled invoices ($148K total)'},
+  {ts:nowStamp(30),  ev:'scheduled_invoice_due',    ent:'invoice',actor:'Emma',   target:'INV-FF-03',        rationale:'Milestone due · Sent per contract schedule'},
+  {ts:nowStamp(90),  ev:'contract_schedule_parsed', ent:'deal',   actor:'Emma',   target:'DS-HL-205',        rationale:'Parsed contract into 4 scheduled invoices ($82K total)'},
+  {ts:nowStamp(1440),ev:'payment_applied',          ent:'payment',actor:'Emma',   target:'QB-P-99120',       rationale:'Applied $37K to INV-VS-01 (Vertex deposit)'}
+];
+
+function getDeals(){
+  if(currentClient==='trade')   return TRADE_DEALS;
+  if(currentClient==='halcyon') return HALCYON_DEALS;
+  if(currentClient==='all')     return DEALS.concat(TRADE_DEALS, HALCYON_DEALS);
+  return DEALS;
+}
+function getApprovals(){
+  if(currentClient==='trade')   return TRADE_APPROVALS;
+  if(currentClient==='halcyon') return HALCYON_APPROVALS;
+  if(currentClient==='all')     return APPROVALS.concat(TRADE_APPROVALS, HALCYON_APPROVALS);
+  return APPROVALS;
+}
+function getCollections(){
+  if(currentClient==='trade')   return TRADE_COLLECTIONS;
+  if(currentClient==='halcyon') return HALCYON_COLLECTIONS;
+  if(currentClient==='all')     return COLLECTIONS.concat(TRADE_COLLECTIONS, HALCYON_COLLECTIONS);
+  return COLLECTIONS;
+}
+function getIncidents(){
+  if(currentClient==='trade')   return TRADE_INCIDENTS;
+  if(currentClient==='halcyon') return HALCYON_INCIDENTS;
+  if(currentClient==='all')     return INCIDENTS.concat(TRADE_INCIDENTS, HALCYON_INCIDENTS);
+  return INCIDENTS;
+}
+function getAudit(){
+  if(currentClient==='trade')   return TRADE_AUDIT.concat(AUDIT.slice(0,4));
+  if(currentClient==='halcyon') return HALCYON_AUDIT.concat(AUDIT.slice(0,2));
+  if(currentClient==='all')     return TRADE_AUDIT.concat(HALCYON_AUDIT, AUDIT);
+  return AUDIT;
+}
+function findDeal(id){
+  return DEALS.find(x=>x.id===id) || TRADE_DEALS.find(x=>x.id===id) || HALCYON_DEALS.find(x=>x.id===id);
+}
+function findScheduleInvoice(dealId, invNum){
+  const sched = HALCYON_SCHEDULE[dealId] || [];
+  return sched.find(s=>s.n===invNum);
+}
+
+/* =====================================================================
+   REVENUE OVER TIME — 12 months trailing per client + 90-day forward
+   ===================================================================== */
+const REV_MONTHS = ['Oct 25','Nov 25','Dec 25','Jan 26','Feb 26','Mar 26','Apr 26','May 26','Jun 26','Jul 26','Aug 26','Sep 26'];
+
+// Rally UXR — steady single-invoice deals, ~$40-70K/mo, ~90%+ collection
+const RALLY_MONTHLY = [
+  {month:'Oct 25', invoiced:48000, paid:46500, outstanding:1500, overdue:0},
+  {month:'Nov 25', invoiced:52000, paid:50000, outstanding:2000, overdue:0},
+  {month:'Dec 25', invoiced:41000, paid:41000, outstanding:0,    overdue:0},
+  {month:'Jan 26', invoiced:58000, paid:55500, outstanding:2500, overdue:0},
+  {month:'Feb 26', invoiced:63000, paid:60000, outstanding:3000, overdue:0},
+  {month:'Mar 26', invoiced:49000, paid:47000, outstanding:2000, overdue:0},
+  {month:'Apr 26', invoiced:67000, paid:63000, outstanding:2500, overdue:1500},
+  {month:'May 26', invoiced:55000, paid:52500, outstanding:2500, overdue:0},
+  {month:'Jun 26', invoiced:71000, paid:66000, outstanding:5000, overdue:0},
+  {month:'Jul 26', invoiced:44000, paid:41000, outstanding:3000, overdue:0},
+  {month:'Aug 26', invoiced:62000, paid:56000, outstanding:5000, overdue:1000},
+  {month:'Sep 26', invoiced:59000, paid:35000, outstanding:24000,overdue:0}
+];
+
+// Trade Space — larger single-invoice deals, portal delays, ~$25-45K/mo, ~75-85% collection
+const TRADE_MONTHLY = [
+  {month:'Oct 25', invoiced:34000, paid:26000, outstanding:5000, overdue:3000},
+  {month:'Nov 25', invoiced:42000, paid:34000, outstanding:4000, overdue:4000},
+  {month:'Dec 25', invoiced:28000, paid:22000, outstanding:4000, overdue:2000},
+  {month:'Jan 26', invoiced:39000, paid:30000, outstanding:5000, overdue:4000},
+  {month:'Feb 26', invoiced:31000, paid:26000, outstanding:3000, overdue:2000},
+  {month:'Mar 26', invoiced:45000, paid:34000, outstanding:6000, overdue:5000},
+  {month:'Apr 26', invoiced:36000, paid:28000, outstanding:4500, overdue:3500},
+  {month:'May 26', invoiced:41000, paid:33000, outstanding:5000, overdue:3000},
+  {month:'Jun 26', invoiced:27000, paid:22000, outstanding:3500, overdue:1500},
+  {month:'Jul 26', invoiced:38000, paid:29000, outstanding:5500, overdue:3500},
+  {month:'Aug 26', invoiced:44000, paid:32000, outstanding:8000, overdue:4000},
+  {month:'Sep 26', invoiced:37000, paid:18000, outstanding:15000,overdue:4000}
+];
+
+// Halcyon Events — lumpy, event-driven, $15-90K/mo, high MoM variance
+const HALCYON_MONTHLY = [
+  {month:'Oct 25', invoiced:18000, paid:17000, outstanding:1000, overdue:0},
+  {month:'Nov 25', invoiced:82000, paid:78000, outstanding:2000, overdue:2000},
+  {month:'Dec 25', invoiced:22000, paid:21000, outstanding:1000, overdue:0},
+  {month:'Jan 26', invoiced:16000, paid:15000, outstanding:1000, overdue:0},
+  {month:'Feb 26', invoiced:71000, paid:66000, outstanding:3000, overdue:2000},
+  {month:'Mar 26', invoiced:24000, paid:22500, outstanding:1500, overdue:0},
+  {month:'Apr 26', invoiced:19000, paid:18000, outstanding:1000, overdue:0},
+  {month:'May 26', invoiced:89000, paid:82000, outstanding:5000, overdue:2000},
+  {month:'Jun 26', invoiced:37000, paid:37000, outstanding:0,    overdue:0},
+  {month:'Jul 26', invoiced:41000, paid:38000, outstanding:3000, overdue:0},
+  {month:'Aug 26', invoiced:24000, paid:22000, outstanding:2000, overdue:0},
+  {month:'Sep 26', invoiced:61000, paid:24600, outstanding:36400,overdue:0}
+];
+
+function buildAllMonthly(){
+  return REV_MONTHS.map((m,i)=>{
+    const r=RALLY_MONTHLY[i], t=TRADE_MONTHLY[i], h=HALCYON_MONTHLY[i];
+    return {
+      month:m,
+      invoiced:r.invoiced+t.invoiced+h.invoiced,
+      paid:r.paid+t.paid+h.paid,
+      outstanding:r.outstanding+t.outstanding+h.outstanding,
+      overdue:r.overdue+t.overdue+h.overdue
+    };
+  });
+}
+const ALL_MONTHLY = buildAllMonthly();
+
+const MONTHLY_DATA = {rally:RALLY_MONTHLY, trade:TRADE_MONTHLY, halcyon:HALCYON_MONTHLY, all:ALL_MONTHLY};
+
+// Forward 90-day scheduled invoices (from today 2026-09-15 through 2026-12-14)
+const RALLY_FORWARD = [
+  {due:'2026-09-22', client:'Rally UXR', contract:'Acme Corp research retainer',        milestone:'October fee',      amount:12000, status:'Scheduled'},
+  {due:'2026-10-05', client:'Rally UXR', contract:'Meridian discovery study',           milestone:'Kickoff invoice',  amount:28000, status:'Scheduled'},
+  {due:'2026-10-20', client:'Rally UXR', contract:'Northwind panel research',           milestone:'Phase 1 delivery', amount:47000, status:'Scheduled'},
+  {due:'2026-11-01', client:'Rally UXR', contract:'Acme Corp research retainer',        milestone:'November fee',     amount:12000, status:'Scheduled'},
+  {due:'2026-11-18', client:'Rally UXR', contract:'Meridian discovery study',           milestone:'Midpoint',         amount:22000, status:'Scheduled'},
+  {due:'2026-12-01', client:'Rally UXR', contract:'Acme Corp research retainer',        milestone:'December fee',     amount:12000, status:'Scheduled'}
+];
+const TRADE_FORWARD = [
+  {due:'2026-09-25', client:'Trade Space', contract:'University of Michigan · Ross',    milestone:'Q4 seat renewal',    amount:34000, status:'Scheduled'},
+  {due:'2026-10-10', client:'Trade Space', contract:'Stanford GSB',                     milestone:'Program expansion',  amount:22000, status:'Scheduled'},
+  {due:'2026-10-28', client:'Trade Space', contract:'UT Austin · McCombs',              milestone:'Cohort 2 invoice',   amount:47500, status:'Scheduled'},
+  {due:'2026-11-15', client:'Trade Space', contract:'MIT Sloan',                        milestone:'Q4 module fee',      amount:18000, status:'Scheduled'},
+  {due:'2026-12-05', client:'Trade Space', contract:'Boston University',                milestone:'Cohort 3 kickoff',   amount:28000, status:'Scheduled'}
+];
+const HALCYON_FORWARD = [
+  {due:'2026-09-25', client:'Halcyon Events', contract:'DesignOps Next NYC',            milestone:'Deposit · 30%',         amount:19200, status:'Draft'},
+  {due:'2026-10-01', client:'Halcyon Events', contract:'Vertex Summit 2026',            milestone:'Pre-event 50% balance', amount:37000, status:'Sent'},
+  {due:'2026-10-15', client:'Halcyon Events', contract:'FinTech Forward Chicago',       milestone:'Onsite activation',     amount:24600, status:'Sent'},
+  {due:'2026-11-05', client:'Halcyon Events', contract:'Vertex Summit 2026',            milestone:'Onsite activation fee', amount:29600, status:'Scheduled'},
+  {due:'2026-11-15', client:'Halcyon Events', contract:'FinTech Forward Chicago',       milestone:'Post-event balance',    amount:16400, status:'Scheduled'},
+  {due:'2026-11-20', client:'Halcyon Events', contract:'DesignOps Next NYC',            milestone:'Onsite activation',     amount:32000, status:'Scheduled'},
+  {due:'2026-12-01', client:'Halcyon Events', contract:'Vertex Summit 2026',            milestone:'Post-event reporting',  amount:22200, status:'Scheduled'},
+  {due:'2026-12-10', client:'Halcyon Events', contract:'DesignOps Next NYC',            milestone:'Post-event balance',    amount:12800, status:'Scheduled'}
+];
+const ALL_FORWARD = RALLY_FORWARD.concat(TRADE_FORWARD, HALCYON_FORWARD).sort((a,b)=>a.due.localeCompare(b.due));
+
+const FORWARD_SCHEDULE = {rally:RALLY_FORWARD, trade:TRADE_FORWARD, halcyon:HALCYON_FORWARD, all:ALL_FORWARD};
+
+function getMonthly(){ return MONTHLY_DATA[currentClient] || MONTHLY_DATA.all; }
+function getForward(){ return FORWARD_SCHEDULE[currentClient] || FORWARD_SCHEDULE.all; }
+
+function fmtK(n){
+  if(n>=1000000) return '$'+(n/1000000).toFixed(1)+'M';
+  return '$'+Math.round(n/1000)+'K';
+}
+function fmtUSD(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
+
+let revChartInstance = null;
+let revSortState = {key:null, dir:1};
+
+function renderRevChart(){
+  const canvas = document.getElementById('revChart');
+  if(!canvas || typeof Chart === 'undefined') return;
+  const data = getMonthly();
+  const labels = data.map(r=>r.month);
+  const paid = data.map(r=>r.paid);
+  const outstanding = data.map(r=>r.outstanding);
+  const overdue = data.map(r=>r.overdue);
+
+  if(revChartInstance){ revChartInstance.destroy(); revChartInstance = null; }
+  revChartInstance = new Chart(canvas.getContext('2d'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Paid',        data:paid,        backgroundColor:'#0f7a45', stack:'a', borderRadius:2, maxBarThickness:32},
+        {label:'Outstanding', data:outstanding, backgroundColor:'#7c5cfc', stack:'a', borderRadius:2, maxBarThickness:32},
+        {label:'Overdue',     data:overdue,     backgroundColor:'#e05252', stack:'a', borderRadius:2, maxBarThickness:32}
+      ]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label:(ctx)=> ctx.dataset.label+': '+fmtUSD(ctx.parsed.y),
+            footer:(items)=>{
+              const total = items.reduce((s,it)=>s+it.parsed.y,0);
+              return 'Total: '+fmtUSD(total);
+            }
+          }
+        }
+      },
+      scales:{
+        x:{stacked:true, grid:{display:false}, ticks:{font:{size:11}, color:'#4a4a55'}},
+        y:{stacked:true, beginAtZero:true, grid:{color:'#eeeef1'}, ticks:{font:{size:11}, color:'#8a8a94', callback:(v)=>fmtK(v)}}
+      }
+    }
+  });
+
+  // Update stat pills
+  const data2 = getMonthly();
+  const cur = data2[data2.length-1];
+  const prev = data2[data2.length-2];
+  document.getElementById('revStatThis').textContent = fmtK(cur.invoiced);
+  document.getElementById('revStatLast').textContent = fmtK(prev.invoiced);
+  const mom = prev.invoiced ? ((cur.invoiced-prev.invoiced)/prev.invoiced)*100 : 0;
+  const chip = document.getElementById('revStatMoM');
+  const rounded = Math.round(mom);
+  if(rounded > 0){ chip.className='mom-chip up';   chip.textContent = '↑ +'+rounded+'% vs last mo'; }
+  else if(rounded < 0){ chip.className='mom-chip down'; chip.textContent = '↓ '+rounded+'% vs last mo'; }
+  else { chip.className='mom-chip flat'; chip.textContent = '— flat vs last mo'; }
+}
+
+function renderRevMonthlyTable(){
+  const tbody = document.querySelector('#tbl-rev-monthly tbody');
+  if(!tbody) return;
+  let rows = getMonthly().map((r,i,arr)=>{
+    const prev = i>0 ? arr[i-1] : null;
+    const collection = r.invoiced ? (r.paid/r.invoiced)*100 : 0;
+    const mom = prev ? ((r.invoiced-prev.invoiced)/prev.invoiced)*100 : null;
+    return {...r, collection, mom, _i:i};
+  });
+  if(revSortState.key){
+    const k = revSortState.key, d = revSortState.dir;
+    rows = rows.slice().sort((a,b)=>{
+      let av=a[k], bv=b[k];
+      if(k==='month'){ av=a._i; bv=b._i; }
+      if(av==null) av=-Infinity;
+      if(bv==null) bv=-Infinity;
+      if(av<bv) return -1*d;
+      if(av>bv) return 1*d;
+      return 0;
+    });
+  }
+  const lastIdx = getMonthly().length - 1;
+  tbody.innerHTML = rows.map(r=>{
+    const momCell = r.mom==null
+      ? '<span class="mom-cell flat">—</span>'
+      : (r.mom>0
+          ? '<span class="mom-cell up">↑ +'+Math.round(r.mom)+'%</span>'
+          : (r.mom<0
+              ? '<span class="mom-cell down">↓ '+Math.round(r.mom)+'%</span>'
+              : '<span class="mom-cell flat">— 0%</span>'));
+    const cls = r._i===lastIdx ? ' class="mo-current"' : '';
+    return '<tr'+cls+'>'
+      +'<td>'+r.month+'</td>'
+      +'<td class="num">'+fmtUSD(r.invoiced)+'</td>'
+      +'<td class="num">'+fmtUSD(r.paid)+'</td>'
+      +'<td class="num">'+fmtUSD(r.outstanding)+'</td>'
+      +'<td class="num">'+fmtUSD(r.overdue)+'</td>'
+      +'<td class="num">'+r.collection.toFixed(1)+'%</td>'
+      +'<td class="num">'+momCell+'</td>'
+      +'</tr>';
+  }).join('');
+}
+
+function renderRevForecast(){
+  const tbody = document.querySelector('#tbl-rev-forecast tbody');
+  if(!tbody) return;
+  const rows = getForward();
+  tbody.innerHTML = rows.map(r=>{
+    const pillClass = r.status==='Sent' ? 'blue' : (r.status==='Draft' ? 'amber' : 'slate');
+    return '<tr>'
+      +'<td class="mono">'+r.due+'</td>'
+      +'<td>'+r.client+'</td>'
+      +'<td>'+r.contract+'</td>'
+      +'<td>'+r.milestone+'</td>'
+      +'<td class="num">'+fmtUSD(r.amount)+'</td>'
+      +'<td><span class="pill '+pillClass+'">'+r.status+'</span></td>'
+      +'</tr>';
+  }).join('');
+  const total = rows.reduce((s,r)=>s+r.amount,0);
+  document.getElementById('revForecastLbl').textContent = 'Forecast: '+fmtK(total)+' across '+rows.length+' invoices in next 90 days';
+  document.getElementById('revForecastVal').textContent = fmtK(total);
+}
+
+function exportRevCsv(){
+  const rows = getMonthly().map((r,i,arr)=>{
+    const prev = i>0 ? arr[i-1] : null;
+    const collection = r.invoiced ? (r.paid/r.invoiced)*100 : 0;
+    const mom = prev ? ((r.invoiced-prev.invoiced)/prev.invoiced)*100 : null;
+    return [r.month, r.invoiced, r.paid, r.outstanding, r.overdue, collection.toFixed(1)+'%', mom==null?'':Math.round(mom)+'%'];
+  });
+  const header = ['Month','Invoiced','Paid','Outstanding','Overdue','Collection rate','MoM change'];
+  const csv = [header].concat(rows).map(r=>r.map(v=>String(v).replace(/"/g,'""')).map(v=>/[",\n]/.test(v)?'"'+v+'"':v).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'invoices-monthly-'+currentClient+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 500);
+  toast('success','Exported monthly breakdown CSV');
+}
+
+function renderRevenueSection(){
+  renderRevChart();
+  renderRevMonthlyTable();
+  renderRevForecast();
+}
+
+/* =====================================================================
+   TAB SWITCHING
+   ===================================================================== */
+document.getElementById('tabNav').addEventListener('click', e=>{
+  const ni = e.target.closest('.ni'); if(!ni) return;
+  const tab = ni.dataset.tab;
+  document.querySelectorAll('.ssb .ni').forEach(n=>n.classList.remove('active'));
+  ni.classList.add('active');
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('scr-'+tab).classList.add('active');
+  window.scrollTo(0,0);
+});
+
+/* =====================================================================
+   RENDER: Pipeline kanban
+   ===================================================================== */
+function renderPipeline(){
+  const wrap = document.getElementById('kanban-deals');
+  const deals = getDeals();
+  wrap.innerHTML = PIPELINE_STAGES.map(s=>{
+    const cards = deals.filter(d=>d.stage===s.k);
+    return `<div class="kcol" data-stage="${s.k}" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="dropDeal(event,'${s.k}')">
+      <div class="kh"><span>${s.n}</span><span class="cnt">${cards.length}</span></div>
+      <div class="kbody">${cards.map(d=>dealCardHTML(d)).join('') || '<div class="empty" style="padding:14px 8px">No deals</div>'}</div>
+    </div>`;
+  }).join('');
+}
+function dealCardHTML(d){
+  const prio = d.prio==='high'?'red':d.prio==='med'?'amber':'slate';
+  const portalChip = d.portal ? `<div style="margin-top:6px"><span class="pill purple dot">Portal upload · ${d.portal.name}</span></div>` : '';
+  const contractChip = d.progressive ? `<div style="margin-top:6px"><span class="pill blue dot">Contract · ${d.sponsor}</span></div>` : '';
+  const liveChip = d.real ? `<div style="margin-top:6px"><span class="pill green dot">Live · real HubSpot data</span></div>` : '';
+  return `<div class="kcard" draggable="true" data-id="${d.id}"
+     ondragstart="event.dataTransfer.setData('text/plain','${d.id}');this.classList.add('dragging')"
+     ondragend="this.classList.remove('dragging')"
+     onclick="openDealDrawer('${d.id}')">
+    <div class="kt"><span class="id">${d.id}</span><span class="pill ${prio} dot">${d.prio}</span></div>
+    <div class="cust">${d.c}</div>
+    <div class="kmeta"><span class="amt">${money(d.amt)}</span><span style="color:var(--text-3)">${d.days}d in stage</span></div>
+    ${portalChip}${contractChip}${liveChip}
+  </div>`;
+}
+function dropDeal(ev, targetStage){
+  ev.preventDefault();
+  document.querySelectorAll('.kcol').forEach(c=>c.classList.remove('dragover'));
+  const id = ev.dataTransfer.getData('text/plain');
+  const deal = findDeal(id); if(!deal) return;
+  const prev = deal.stage;
+  deal.stage = targetStage;
+  renderPipeline();
+  toast('warn','Manual stage move ('+prev+' → '+targetStage+') — in production, progression should follow the workflow. Change logged to audit.');
+}
+
+/* =====================================================================
+   RENDER: Approvals
+   ===================================================================== */
+function renderApprovals(){
+  const tb = document.querySelector('#tbl-approval tbody');
+  const rows = getApprovals();
+  tb.innerHTML = rows.map(a=>{
+    const tier = amtTier(a.amt);
+    return `<tr onclick="openApprovalDrawer('${a.inv}')">
+      <td class="mono">${a.inv}</td>
+      <td>${a.c}</td>
+      <td class="amt-cell ${tier}">${money(a.amt)}</td>
+      <td class="mono">${a.deal}</td>
+      <td>${a.approver}</td>
+      <td class="num">${a.age}</td>
+      <td style="color:var(--text-3)">${a.esc}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="7" class="empty">No approvals pending for this client</td></tr>`;
+}
+
+/* =====================================================================
+   RENDER: Cash Application
+   ===================================================================== */
+function renderCash(view){
+  const body = document.getElementById('cash-body');
+  if(view==='matched'){
+    body.innerHTML = `<table class="t"><thead><tr>
+      <th>QB payment</th><th>Customer</th><th class="num">Amount</th><th>Applied to</th><th class="num">Confidence</th><th>When</th>
+    </tr></thead><tbody>${CASH_MATCHED.map(p=>`<tr onclick="openPaymentDrawer('matched','${p.qb}')">
+      <td class="mono">${p.qb}</td><td>${p.c}</td><td class="amt-cell green">${money(p.amt)}</td>
+      <td class="mono">${p.inv}</td><td class="num">${p.conf.toFixed(2)}</td><td style="color:var(--text-3)">${p.when}</td>
+    </tr>`).join('')}</tbody></table>`;
+  } else if(view==='unmatched'){
+    body.innerHTML = `<table class="t"><thead><tr>
+      <th>QB payment</th><th>Customer / memo</th><th class="num">Amount</th><th>Suggest match (top 3)</th><th class="num">Best conf</th><th>When</th>
+    </tr></thead><tbody>${CASH_UNMATCHED.map(p=>`<tr onclick="openPaymentDrawer('unmatched','${p.qb}')">
+      <td class="mono">${p.qb}</td><td>${p.c}</td><td class="amt-cell red">${money(p.amt)}</td>
+      <td><div class="suggest">${p.cands.map(x=>`<span class="s">${x}</span>`).join('')}</div></td>
+      <td class="num">${p.conf.toFixed(2)}</td><td style="color:var(--text-3)">${p.when}</td>
+    </tr>`).join('')}</tbody></table>`;
+  } else {
+    body.innerHTML = `<table class="t"><thead><tr>
+      <th>QB payment</th><th>Customer</th><th class="num">Applied</th><th class="num">Invoice total</th><th>Applied to</th><th class="num">Confidence</th><th>When</th>
+    </tr></thead><tbody>${CASH_PARTIAL.map(p=>`<tr onclick="openPaymentDrawer('partial','${p.qb}')">
+      <td class="mono">${p.qb}</td><td>${p.c}</td>
+      <td class="amt-cell amber">${money(p.amt)}</td>
+      <td class="amt-cell">${money(p.due)}</td>
+      <td class="mono">${p.inv}</td><td class="num">${p.conf.toFixed(2)}</td><td style="color:var(--text-3)">${p.when}</td>
+    </tr>`).join('')}</tbody></table>`;
+  }
+}
+document.getElementById('cash-tabs').addEventListener('click', e=>{
+  const b = e.target.closest('.subtab'); if(!b) return;
+  document.querySelectorAll('#cash-tabs .subtab').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  renderCash(b.dataset.cashtab);
+});
+
+/* =====================================================================
+   RENDER: Collections kanban
+   ===================================================================== */
+function renderCollections(){
+  const wrap = document.getElementById('kanban-collections');
+  const source = getCollections();
+  wrap.innerHTML = DUNNING_STAGES.map(st=>{
+    const cards = source.filter(c=>c.stage===st);
+    return `<div class="kcol"><div class="kh"><span>${st}</span><span class="cnt">${cards.length}</span></div>
+      <div class="kbody">${cards.map(c=>`
+        <div class="kcard" onclick="openCollectionsDrawer('${c.inv}')">
+          <div class="kt"><span class="id">${c.inv}</span>${c.paused?'<span class="pill amber dot">paused</span>':`<span class="pill ${c.dpd>45?'red':c.dpd>15?'orange':'slate'} dot">${c.dpd}d late</span>`}</div>
+          <div class="cust">${c.c}</div>
+          <div class="kmeta"><span class="amt">${money(c.amt)}</span><span style="color:var(--text-3)">DPD ${c.dpd}</span></div>
+        </div>`).join('')}</div></div>`;
+  }).join('');
+}
+
+/* =====================================================================
+   RENDER: Incidents
+   ===================================================================== */
+function renderIncidents(){
+  const sel = document.getElementById('incTypeF');
+  if(sel.options.length<=1){ INCIDENT_TYPES.forEach(t=>{const o=document.createElement('option');o.textContent=t;sel.appendChild(o);});}
+  const q = document.getElementById('incSearch').value.toLowerCase();
+  const tf = document.getElementById('incTypeF').value;
+  const sf = document.getElementById('incStatusF').value;
+  const rows = getIncidents().filter(i=>{
+    if(tf && i.type!==tf) return false;
+    if(sf && i.st!==sf) return false;
+    if(q && !(i.id+' '+i.c+' '+i.type+' '+(i.inv||'')).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  document.getElementById('incCount').textContent = rows.length + ' incidents';
+  const tb = document.querySelector('#tbl-incidents tbody');
+  tb.innerHTML = rows.map(i=>{
+    const stColor = i.st==='resolved'?'green':i.st==='awaiting_approval'?'amber':'red';
+    return `<tr onclick="openIncidentDrawer('${i.id}')">
+      <td class="mono">${i.id}</td>
+      <td><span class="pill purple">${i.type}</span></td>
+      <td>${i.c}</td>
+      <td><span class="pill ${stColor} dot">${i.st}</span></td>
+      <td>${i.h}</td>
+      <td class="num">${i.age}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="6" class="empty">No incidents match filters</td></tr>`;
+}
+['incSearch','incTypeF','incStatusF'].forEach(id=>document.getElementById(id).addEventListener('input', renderIncidents));
+
+/* =====================================================================
+   RENDER: Audit
+   ===================================================================== */
+function renderAudit(){
+  const sel = document.getElementById('audEventF');
+  if(sel.options.length<=1){
+    const allEv = new Set(AUDIT.map(a=>a.ev));
+    TRADE_AUDIT.forEach(a=>allEv.add(a.ev));
+    HALCYON_AUDIT.forEach(a=>allEv.add(a.ev));
+    [...allEv].sort().forEach(t=>{const o=document.createElement('option');o.textContent=t;sel.appendChild(o);});
+  }
+  const q = document.getElementById('audSearch').value.toLowerCase();
+  const ef = document.getElementById('audEntityF').value;
+  const af = document.getElementById('audActorF').value;
+  const vf = document.getElementById('audEventF').value;
+  const source = getAudit();
+  const rows = source.filter(a=>{
+    if(ef && a.ent!==ef) return false;
+    if(af && a.actor!==af) return false;
+    if(vf && a.ev!==vf) return false;
+    if(q && !(a.ts+' '+a.ev+' '+a.target+' '+a.actor+' '+a.rationale).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  window.__auditRows = rows;
+  const tb = document.querySelector('#tbl-audit tbody');
+  tb.innerHTML = rows.map((a,i)=>{
+    const actClass = a.actor==='Emma'?'purple':(a.actor==='system'?'slate':'blue');
+    return `<tr onclick="expandAudit(this,${i})">
+      <td class="mono" style="font-size:11px">${a.ts}</td>
+      <td class="mono">${a.ev}</td>
+      <td><span class="pill slate">${a.ent}</span></td>
+      <td><span class="pill ${actClass}">${a.actor}</span></td>
+      <td class="mono">${a.target}</td>
+      <td style="color:var(--text-2);font-size:12px">${a.rationale}</td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="6" class="empty">No events match filters</td></tr>`;
+}
+function expandAudit(row,i){
+  const a = (window.__auditRows||AUDIT)[i]; if(!a) return;
+  const before = JSON.stringify({status:'previous',ts:a.ts.slice(0,10),target:a.target},null,2);
+  const after  = JSON.stringify({status:a.ev,ts:a.ts,target:a.target,actor:a.actor,rationale:a.rationale},null,2);
+  openDrawer('Audit event · '+a.ev, `${a.actor} · ${a.target} · ${a.ts}`, `
+    <div class="dsec"><h4>Before snapshot</h4><div class="jsonbox">${before}</div></div>
+    <div class="dsec"><h4>After snapshot</h4><div class="jsonbox">${after}</div></div>
+    <div class="dsec"><h4>Context</h4><div style="font-size:12.5px;color:var(--text-2)">${a.rationale}</div></div>
+  `, `<button class="btn" onclick="closeDrawer()">Close</button>`);
+}
+['audSearch','audEntityF','audActorF','audEventF'].forEach(id=>document.getElementById(id).addEventListener('input', renderAudit));
+
+function exportCSV(){
+  const rows = [['timestamp','event','entity','actor','target','rationale']].concat(AUDIT.map(a=>[a.ts,a.ev,a.ent,a.actor,a.target,a.rationale.replace(/"/g,"'")]));
+  const csv = rows.map(r=>r.map(x=>`"${x}"`).join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='emma_audit_'+Date.now()+'.csv'; a.click();
+  toast('success','Audit CSV exported · '+AUDIT.length+' events');
+}
+
+/* =====================================================================
+   DRAWER
+   ===================================================================== */
+function openDrawer(title, sub, bodyHTML, footHTML){
+  document.getElementById('drawerTitle').textContent = title;
+  document.getElementById('drawerSub').innerHTML = sub;
+  document.getElementById('drawerBody').innerHTML = bodyHTML;
+  document.getElementById('drawerFoot').innerHTML = footHTML || '<button class="btn" onclick="closeDrawer()">Close</button>';
+  document.getElementById('drawerBd').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+}
+function closeDrawer(){
+  document.getElementById('drawerBd').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrawer(); });
+
+function contractSectionHTML(d){
+  if(!d.contract) return '';
+  const c = d.contract;
+  const dealId = d.id;
+  return `
+    <div class="dsec"><h4>Contract</h4>
+      <div class="contract-card">
+        <div class="contract-head">
+          <div class="contract-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+          </div>
+          <div class="contract-info">
+            <div class="contract-fn">${c.filename}</div>
+            <div class="contract-meta">Signed ${c.signed_date} · ${c.pages} pages · ${c.size_kb}KB</div>
+            <div class="contract-parties">
+              <div><span class="k">Parties:</span> ${c.party_from} (${c.party_from_domain}) and ${c.party_to} (${c.party_to_domain})</div>
+              <div style="margin-top:2px"><span class="k">Signatories:</span> ${c.signatories.join(' · ')}</div>
+            </div>
+            <div class="contract-actions">
+              <button class="btn primary sm" onclick="openContractModal('${dealId}')">View PDF</button>
+              <button class="btn sm" onclick="toast('success','Downloading contract...')">Download</button>
+              <button class="btn sm" onclick="toast('success','Contract re-parsed · schedule refreshed')">Re-parse</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function openContractModal(dealId){
+  const d = findDeal(dealId); if(!d || !d.contract) return;
+  const c = d.contract;
+  const bd = document.getElementById('pdfModalBd');
+  const body = document.getElementById('pdfModalBody');
+  document.getElementById('pdfModalFn').textContent = c.filename;
+  document.getElementById('pdfModalPages').textContent = 'Page 1 of ' + c.pages;
+  const paragraphs = (c.mock_body || '').split(/(?<=\.)\s+(?=[A-Z])/).filter(Boolean);
+  const midpoint = Math.max(1, Math.floor(paragraphs.length / 2));
+  const bodyBefore = paragraphs.slice(0, midpoint).map(p=>`<p>${p}</p>`).join('');
+  const bodyAfter = paragraphs.slice(midpoint).map(p=>`<p>${p}</p>`).join('');
+  const title = c.filename.toLowerCase().includes('sponsorship') ? 'Event Sponsorship Agreement'
+    : c.filename.toLowerCase().includes('po-') || c.filename.toLowerCase().includes('t&c') ? 'Purchase Order and Terms'
+    : c.filename.toLowerCase().includes('retainer') ? 'Retainer Amendment'
+    : c.filename.toLowerCase().includes('sow') ? 'Statement of Work'
+    : 'Master Services Agreement';
+  body.innerHTML = `
+    <div class="pdf-page">
+      <h1>${title}</h1>
+      <div class="subtitle">Executed ${c.signed_date}</div>
+      <div class="parties">Between <b>${c.party_from}</b> and <b>${c.party_to}</b></div>
+      <div class="section-h">1. Recitals and scope</div>
+      ${bodyBefore}
+      <div class="section-h">2. Fees and payment schedule</div>
+      <div class="schedule-block">Fees payable per the terms set forth herein. Invoices issued in accordance with the agreed schedule and payable per the stated payment terms. Late payments accrue interest at 1.5% per month.</div>
+      ${bodyAfter}
+      <div class="section-h">3. Signatures</div>
+      <div class="sig-block">
+        <div class="sig">
+          <div class="name">${c.signatories[0] || ''}</div>
+          <div class="role">For ${c.party_from}</div>
+          <div class="stamp">Signed · ${c.signed_date}</div>
+        </div>
+        <div class="sig">
+          <div class="name">${c.signatories[1] || ''}</div>
+          <div class="role">For ${c.party_to}</div>
+          <div class="stamp">Signed · ${c.signed_date}</div>
+        </div>
+      </div>
+    </div>`;
+  bd.classList.add('open');
+}
+
+function closeContractModal(){
+  document.getElementById('pdfModalBd').classList.remove('open');
+}
+
+function openDealDrawer(id){
+  const d = findDeal(id); if(!d) return;
+  const stg = PIPELINE_STAGES.findIndex(s=>s.k===d.stage);
+  const stepsHTML = PIPELINE_STAGES.map((s,i)=>`
+    <div class="stp ${i<stg?'done':i===stg?'live':'pending'}"><div class="n">${i+1}</div>
+      <div class="lb">${s.n.replace(/^\d+\.\s*/,'')}</div>
+      <div class="mt">${i<stg?'done':i===stg?'in progress':'pending'}</div></div>`).join('');
+
+  // Portal upload section (Trade Space differentiator)
+  const portalHTML = d.portal ? `
+    <div class="dsec"><h4>Portal upload · ${d.portal.name}</h4>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <div class="dg" style="margin-bottom:8px">
+          <div class="dfield"><div class="l">Detected portal</div><div class="v">${d.portal.name} · ${d.portal.org}</div></div>
+          <div class="dfield"><div class="l">Status</div><div class="v"><span class="pill ${d.portal.status==='Confirmed'?'green':d.portal.status==='In progress'?'amber':'slate'} dot">${d.portal.status}</span></div></div>
+          <div class="dfield mono"><div class="l">Portal ref</div><div class="v">${d.portal.ref}</div></div>
+          <div class="dfield"><div class="l">Submitted at</div><div class="v" style="font-size:12px">${d.portal.submittedAt||'—'}</div></div>
+        </div>
+        <div style="font-size:12px;color:var(--text-2);margin-bottom:10px">Emma detected this customer procures via <b>${d.portal.name}</b>. Instead of emailing the invoice, she will upload it to the procurement portal and monitor punchout confirmation.</div>
+        <button class="btn primary sm" onclick="portalUpload('${d.id}')">${d.portal.status==='Confirmed'?'View portal receipt':'Upload to '+d.portal.name}</button>
+      </div>
+    </div>` : '';
+
+  // Progressive-invoicing schedule (Halcyon differentiator)
+  const sched = HALCYON_SCHEDULE[d.id];
+  const scheduleHTML = (d.progressive && sched) ? `
+    <div class="dsec"><h4>Parsed invoicing schedule</h4>
+      <div style="font-size:12px;color:var(--text-2);margin-bottom:8px">Emma parsed the contract and generated this schedule. Each invoice will be issued on its due date.</div>
+      <table class="t">
+        <thead><tr><th>Invoice #</th><th>Milestone</th><th>Due date</th><th class="num">Amount</th><th>Status</th></tr></thead>
+        <tbody>${sched.map(s=>{
+          const stColor = s.status==='Paid'?'green':s.status==='Sent'?'blue':s.status==='Draft'?'amber':'slate';
+          return `<tr onclick="openScheduleInvoiceDrawer('${d.id}','${s.n}')">
+            <td class="mono">${s.n}</td>
+            <td>${s.label}</td>
+            <td class="mono">${s.due}</td>
+            <td class="amt-cell">${money(s.amt)}</td>
+            <td><span class="pill ${stColor} dot">${s.status}</span></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>` : '';
+
+  const body = `
+    <div class="dg">
+      <div class="dfield"><div class="l">HubSpot deal ID</div><div class="v" style="font-family:var(--mono);font-size:12px">${d.id}</div></div>
+      <div class="dfield"><div class="l">Customer</div><div class="v">${d.c}</div></div>
+      <div class="dfield"><div class="l">Amount</div><div class="v">${money(d.amt)}</div></div>
+      <div class="dfield"><div class="l">Deal owner</div><div class="v">${d.owner}</div></div>
+      <div class="dfield"><div class="l">Payment terms</div><div class="v">${d.terms}</div></div>
+      <div class="dfield"><div class="l">PDF extracted at</div><div class="v" style="font-size:12px">${d.extractedAt}</div></div>
+    </div>
+    ${contractSectionHTML(d)}
+    <div class="dsec"><h4>Pipeline stage</h4><div class="stepper">${stepsHTML}</div></div>
+    ${portalHTML}
+    ${scheduleHTML}
+    <div class="dsec"><h4>Extracted PDF terms</h4>
+      <div class="dg">
+        <div class="dfield"><div class="l">Confidence</div><div class="v">${d.conf?d.conf.toFixed(2):'—'}${d.conf&&d.conf<0.85?' <span class="pill red">low</span>':''}</div></div>
+        <div class="dfield"><div class="l">Contract term</div><div class="v">${d.progressive?'Event sponsorship · progressive':'12 months'}</div></div>
+        <div class="dfield"><div class="l">Billing frequency</div><div class="v">${d.progressive?'Milestone-based · '+ (sched?sched.length:0) +' invoices':'Annual upfront'}</div></div>
+        <div class="dfield"><div class="l">Signatory</div><div class="v">${d.progressive?'Contract counter-signer':'Rachel Kim, CFO'}</div></div>
+      </div>
+    </div>
+    <div class="dsec"><h4>Invoice draft</h4>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <div><b style="font-size:14px">Draft invoice</b><div style="color:var(--text-3);font-size:11px;margin-top:2px">Version 1 · not yet numbered</div></div>
+          <div class="amt-cell" style="font-size:18px">${money(d.amt)}</div>
+        </div>
+        <table class="t" style="margin-top:10px;font-size:11.5px">
+          <thead><tr><th>Line item</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+          <tbody>
+            <tr><td>Platform annual license</td><td class="num">1</td><td class="num">${money(Math.round(d.amt*0.7))}</td><td class="num">${money(Math.round(d.amt*0.7))}</td></tr>
+            <tr><td>Implementation services</td><td class="num">1</td><td class="num">${money(Math.round(d.amt*0.2))}</td><td class="num">${money(Math.round(d.amt*0.2))}</td></tr>
+            <tr><td>Support · Year 1</td><td class="num">1</td><td class="num">${money(Math.round(d.amt*0.1))}</td><td class="num">${money(Math.round(d.amt*0.1))}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="dsec"><h4>Audit log for this deal</h4>
+      <div class="audit-feed">
+        ${AUDIT.filter(a=>a.target===d.id||a.target.includes(d.id.replace('HS-',''))||(d.stage!=='trigger'&&Math.random()>0.5)).slice(0,4).map(a=>`
+          <div class="audit-item ${a.actor==='Emma'?'emma':a.actor==='system'?'':'human'}">
+            <div class="ah">${a.ev} <span class="ts">${a.ts}</span></div>
+            <div class="ad">${a.actor} · ${a.rationale}</div>
+          </div>`).join('') || '<div class="empty">No events yet</div>'}
+      </div>
+    </div>
+  `;
+  openDrawer('Deal '+d.id+' · '+d.c, `${money(d.amt)} · stage: ${d.stage} · owner ${d.owner}`, body,
+    `<button class="btn" onclick="closeDrawer()">Close</button><button class="btn primary" onclick="closeDrawer();toast('success','Emma opened a working incident for '+'${d.id}')">Open incident</button>`);
+}
+
+function portalUpload(dealId){
+  const d = findDeal(dealId); if(!d||!d.portal) return;
+  if(d.portal.status==='Confirmed'){
+    toast('success','Portal receipt · '+d.portal.name+' · ref '+d.portal.ref);
+    return;
+  }
+  d.portal.status = 'In progress';
+  d.portal.submittedAt = 'Sep 15, 10:15';
+  d.portal.ref = d.portal.ref==='—' ? (d.portal.name.substring(0,3).toUpperCase()+'-'+Math.floor(80000+Math.random()*10000)) : d.portal.ref;
+  closeDrawer();
+  toast('success','Uploaded '+d.id+' to '+d.portal.name+' · awaiting punchout confirmation');
+  renderPipeline();
+}
+
+function openScheduleInvoiceDrawer(dealId, invNum){
+  const s = findScheduleInvoice(dealId, invNum);
+  const parent = findDeal(dealId);
+  if(!s||!parent) return;
+  const stColor = s.status==='Paid'?'green':s.status==='Sent'?'blue':s.status==='Draft'?'amber':'slate';
+  const body = `
+    <div class="dg">
+      <div class="dfield mono"><div class="l">Invoice #</div><div class="v">${s.n}</div></div>
+      <div class="dfield"><div class="l">Milestone</div><div class="v">${s.label}</div></div>
+      <div class="dfield"><div class="l">Due date</div><div class="v">${s.due}</div></div>
+      <div class="dfield"><div class="l">Amount</div><div class="v amt-cell">${money(s.amt)}</div></div>
+      <div class="dfield"><div class="l">Status</div><div class="v"><span class="pill ${stColor} dot">${s.status}</span></div></div>
+      <div class="dfield mono"><div class="l">Source contract</div><div class="v">${dealId}</div></div>
+    </div>
+    <div class="dsec"><h4>Draft invoice preview</h4>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:14px;background:var(--surface-2)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <div><b style="font-size:14px">${parent.c}</b>
+            <div style="color:var(--text-3);font-size:11px;margin-top:2px">Milestone ${s.n} · ${s.label}</div>
+          </div>
+          <div class="amt-cell" style="font-size:18px">${money(s.amt)}</div>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:var(--text-2)">Auto-generated by Emma from the parsed contract schedule. Will be issued on ${s.due}.</div>
+      </div>
+    </div>
+    <div class="dsec"><h4>Why Emma scheduled this</h4>
+      <div style="font-size:12.5px;color:var(--text-2)">Parsed from the ${parent.c} sponsorship contract on ${parent.extractedAt}. Milestone tied to event calendar. Emma will draft the invoice 5 days before the due date and route for approval per the standard matrix.</div>
+    </div>
+  `;
+  openDrawer('Scheduled invoice · '+s.n, `${parent.c} · ${s.label}`, body,
+    `<button class="btn" onclick="closeDrawer()">Close</button>
+     <button class="btn primary" onclick="closeDrawer();toast('success','Emma will issue '+'${s.n}'+' on '+'${s.due}')">Confirm schedule</button>`);
+}
+
+function openApprovalDrawer(inv){
+  const a = getApprovals().find(x=>x.inv===inv); if(!a) return;
+  const tier = amtTier(a.amt);
+  const body = `
+    <div class="dg">
+      <div class="dfield"><div class="l">Invoice #</div><div class="v" style="font-family:var(--mono);font-size:12px">${a.inv}</div></div>
+      <div class="dfield"><div class="l">Customer</div><div class="v">${a.c}</div></div>
+      <div class="dfield"><div class="l">Amount</div><div class="v amt-cell ${tier}">${money(a.amt)} · ${amtTierLabel(a.amt)}</div></div>
+      <div class="dfield"><div class="l">Approver</div><div class="v">${a.approver}</div></div>
+      <div class="dfield"><div class="l">Deal source</div><div class="v" style="font-family:var(--mono);font-size:12px">${a.deal}</div></div>
+      <div class="dfield"><div class="l">Age / escalation</div><div class="v">${a.age}h · <span style="color:var(--text-3);font-weight:500">${a.esc}</span></div></div>
+    </div>
+    <div class="dsec"><h4>Invoice PDF preview</h4>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:24px;background:#fff;text-align:center;color:var(--text-3);font-size:12px">
+        <div style="font-family:var(--mono);font-size:11px;margin-bottom:8px">${a.inv}.pdf · 1 page · 42 KB</div>
+        <div style="border:1px dashed var(--border-strong);padding:32px;color:var(--text-2);font-size:12px">
+          <b style="color:var(--text)">${a.c}</b><br>
+          Bill to: 200 W Adams St · Chicago, IL<br>
+          Line items: Platform license · Implementation · Support<br>
+          <span class="amt-cell ${tier}" style="font-size:18px;display:block;margin-top:8px">${money(a.amt)}</span>
+          Terms: Net 30 · Due Oct 15, 2026
+        </div>
+      </div>
+    </div>
+    <div class="dsec"><h4>Threshold rationale</h4>
+      <div style="font-size:12.5px;color:var(--text-2)">Amount <b class="amt-cell ${tier}">${money(a.amt)}</b> falls in tier <b>${amtTierLabel(a.amt)}</b>. Escalation configured at ${a.esc}. Signed approve/reject email link expires in 72h.</div>
+    </div>
+  `;
+  openDrawer('Approval · '+a.inv, `${a.c} · awaiting ${a.approver}`, body,
+    `<button class="btn danger" onclick="approvalAction('reject','${a.inv}')">Reject</button>
+     <button class="btn" onclick="approvalAction('revise','${a.inv}')">Request revision</button>
+     <button class="btn success" onclick="approvalAction('approve','${a.inv}')">Approve</button>`);
+}
+function approvalAction(kind, inv){
+  closeDrawer();
+  const msgs = {approve:['success','Approved '+inv+' · Emma will auto-send now'],reject:['warn','Rejected '+inv+' · incident opened for revision'],revise:['warn','Revision requested on '+inv]};
+  const [k,m] = msgs[kind]; toast(k,m);
+}
+
+function openPaymentDrawer(kind, qb){
+  const src = kind==='matched'?CASH_MATCHED:kind==='unmatched'?CASH_UNMATCHED:CASH_PARTIAL;
+  const p = src.find(x=>x.qb===qb); if(!p) return;
+  const body = `
+    <div class="dg">
+      <div class="dfield"><div class="l">QB payment ID</div><div class="v" style="font-family:var(--mono);font-size:12px">${p.qb}</div></div>
+      <div class="dfield"><div class="l">Amount</div><div class="v">${money(p.amt)}</div></div>
+      <div class="dfield"><div class="l">Received</div><div class="v">${p.when}</div></div>
+      <div class="dfield"><div class="l">Confidence</div><div class="v">${p.conf.toFixed(2)}</div></div>
+    </div>
+    ${kind==='unmatched' ? `
+      <div class="warn-box">Fuzzy match confidence <b>${p.conf.toFixed(2)}</b> is below the 0.85 threshold. Emma held this for review.</div>
+      <div class="dsec"><h4>Top 3 candidate invoices</h4>
+        ${p.cands.map((c,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:12.5px">
+          <div style="flex:1"><b>${c}</b></div>
+          <button class="btn sm primary" onclick="closeDrawer();toast('success','Applied ${p.qb} · candidate ${i+1}')">Apply</button>
+        </div>`).join('')}
+      </div>` : `
+      <div class="dsec"><h4>Applied to invoice</h4>
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:var(--mono);font-size:12px">${p.inv}</div>
+      </div>
+    `}
+    <div class="dsec"><h4>Reconciliation</h4>
+      ${reconciliationHTML(kind, p)}
+    </div>
+  `;
+  openDrawer('Payment '+p.qb, `${p.c} · ${money(p.amt)}`, body);
+}
+
+function reconciliationHTML(kind, p){
+  const conf = p.conf || 0;
+  const pct = Math.round(conf * 100);
+  const bar = conf >= 0.90 ? 'g' : conf >= 0.70 ? 'a' : 'r';
+  const matchedBy = kind === 'matched'
+    ? {label:'Memo + amount', pill:'green'}
+    : kind === 'partial'
+      ? {label:'Memo reference', pill:'amber'}
+      : {label:'Held for review', pill:'red'};
+  const invLine = kind === 'unmatched'
+    ? `<div class="recon-row"><span class="k">Invoice</span><span class="v" style="color:var(--text-3)">Awaiting match</span></div>`
+    : `<div class="recon-row"><span class="k">Invoice #</span><span class="v mono">${p.inv}</span></div>${p.due?`<div class="recon-row"><span class="k">Due</span><span class="v">${money(p.due)}</span></div>`:''}`;
+  return `
+    <div class="recon-card">
+      <div class="recon-cols">
+        <div class="recon-col">
+          <div class="rl">Payment</div>
+          <div class="recon-row"><span class="k">QB ID</span><span class="v mono">${p.qb}</span></div>
+          <div class="recon-row"><span class="k">Customer</span><span class="v">${p.c}</span></div>
+          <div class="recon-row"><span class="k">Amount</span><span class="v">${money(p.amt)}</span></div>
+          <div class="recon-row"><span class="k">Received</span><span class="v" style="font-size:11.5px">${p.when}</span></div>
+        </div>
+        <div class="recon-col">
+          <div class="rl">Matched invoice</div>
+          ${invLine}
+        </div>
+      </div>
+      <div class="recon-divider"></div>
+      <div class="confbar-label">Match confidence</div>
+      <div class="confbar">
+        <div class="track"><div class="fill ${bar}" style="width:${pct}%"></div></div>
+        <div class="pct">${pct}%</div>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text-2)">
+        <span style="color:var(--text-3);font-weight:600;margin-right:6px">Matched by:</span>
+        <span class="pill ${matchedBy.pill} dot">${matchedBy.label}</span>
+      </div>
+    </div>`;
+}
+
+function openCollectionsDrawer(inv){
+  const c = getCollections().find(x=>x.inv===inv); if(!c) return;
+  const stageIdx = DUNNING_STAGES.indexOf(c.stage);
+  const body = `
+    <div class="dg">
+      <div class="dfield"><div class="l">Invoice</div><div class="v" style="font-family:var(--mono);font-size:12px">${c.inv}</div></div>
+      <div class="dfield"><div class="l">Customer</div><div class="v">${c.c}</div></div>
+      <div class="dfield"><div class="l">Amount</div><div class="v">${money(c.amt)}</div></div>
+      <div class="dfield"><div class="l">Days past due</div><div class="v">${c.dpd}</div></div>
+    </div>
+    ${c.paused?'<div class="warn-box"><b>Cadence paused.</b> Dispute detected via reply classifier. See incident INC-4419.</div>':''}
+    <div class="dsec"><h4>Dunning history</h4>
+      <div class="audit-feed">
+        ${DUNNING_STAGES.slice(0,stageIdx+1).map((s,i)=>`
+          <div class="audit-item emma">
+            <div class="ah">${s} <span class="ts">Day ${[1,8,22,45,60,90][i]}</span></div>
+            <div class="ad">${i<=stageIdx?'Sent per default cadence':'Scheduled'}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="dsec"><h4>Next scheduled action</h4>
+      <div style="font-size:12.5px;color:var(--text-2)">${c.paused?'—paused—':(DUNNING_STAGES[stageIdx+1]||'end of cadence')+' in '+Math.max(1,(([1,8,22,45,60,90][stageIdx+1]||90)-c.dpd))+' days'}</div>
+    </div>
+  `;
+  openDrawer('Collections · '+c.inv, `${c.c} · DPD ${c.dpd}`, body,
+    `<button class="btn danger" onclick="closeDrawer();toast('warn','Write-off draft opened')">Draft writeoff</button>
+     <button class="btn" onclick="closeDrawer();toast('warn','Cadence paused')">${c.paused?'Resume':'Pause'} cadence</button>
+     <button class="btn primary" onclick="closeDrawer();toast('success','Escalated to finance lead')">Escalate</button>`);
+}
+
+function openIncidentDrawer(id){
+  const i = getIncidents().find(x=>x.id===id); if(!i) return;
+  const lifecycle = [
+    {n:'Received',       done:true},
+    {n:'Classified',     done:true},
+    {n:'Context loaded', done:true},
+    {n:'Draft prepared', done:i.st!=='received'},
+    {n:'Awaiting decision', live:i.st==='held_for_review'||i.st==='awaiting_approval', done:i.st==='resolved'},
+    {n:'Actioned',       done:i.st==='resolved'},
+    {n:'Audit written',  done:i.st==='resolved'},
+    {n:'Closed',         done:i.st==='resolved'},
+  ];
+  const stepsHTML = lifecycle.map((s,idx)=>`<div class="stp ${s.done?'done':s.live?'live':'pending'}">
+    <div class="n">${idx+1}</div><div class="lb">${s.n}</div>
+    <div class="mt">${s.done?'✓':s.live?'now':'pending'}</div></div>`).join('');
+  const body = `
+    <div class="dg">
+      <div class="dfield"><div class="l">Incident #</div><div class="v" style="font-family:var(--mono);font-size:12px">${i.id}</div></div>
+      <div class="dfield"><div class="l">Type</div><div class="v"><span class="pill purple">${i.type}</span></div></div>
+      <div class="dfield"><div class="l">Customer</div><div class="v">${i.c}</div></div>
+      <div class="dfield"><div class="l">Status</div><div class="v">${i.st}</div></div>
+      <div class="dfield"><div class="l">Handler</div><div class="v">${i.h}</div></div>
+      <div class="dfield"><div class="l">Age</div><div class="v">${i.age}</div></div>
+    </div>
+
+    <div class="dsec"><h4>Source event</h4>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--text-2)">${i.src}</div>
+    </div>
+
+    <div class="dsec"><h4>AI parsed context</h4>
+      <div class="jsonbox">${JSON.stringify({incident_type:i.type,customer:i.c,invoice:i.inv,deal:i.deal,amount:i.amt,detected_at:nowStamp(0),classifier_confidence:0.94,suggested_action:i.type==='invoice_dispute'?'pause_cadence_and_route_to_human':i.type.includes('payment_unmatched')?'suggest_top_3_candidates':i.type.includes('awaiting_approval')?'wait_for_approver':'held_for_review'},null,2)}</div>
+    </div>
+
+    <div class="dsec"><h4>Lifecycle (8 steps)</h4>
+      <div class="stepper">${stepsHTML}</div>
+    </div>
+
+    <div class="dsec"><h4>Before / after snapshot</h4>
+      <div class="dg">
+        <div>
+          <div class="l" style="font-size:10.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;font-weight:600;margin-bottom:4px">Before</div>
+          <div class="jsonbox">${JSON.stringify({status:'prior',invoice:i.inv,amount:i.amt,cadence:'active'},null,2)}</div>
+        </div>
+        <div>
+          <div class="l" style="font-size:10.5px;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;font-weight:600;margin-bottom:4px">After</div>
+          <div class="jsonbox">${JSON.stringify({status:i.st,incident:i.id,handler:i.h,rationale:i.src},null,2)}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dsec"><h4>Draft resolution / reply</h4>
+      <div style="background:#fffef7;border:1px solid #f3e6a0;border-radius:8px;padding:12px;font-size:12.5px;line-height:1.6">
+        ${i.type==='invoice_dispute' ? `Hi ${i.c} team,<br><br>Thanks for the note — we hear you on invoice ${i.inv}. I've paused collections while we investigate. Can we set up a 15-min call this week to walk through the line items in dispute?<br><br>— Emma (on behalf of Tom Chen, ${i.c} account)` :
+          i.type==='payment_unmatched' ? `Suggested match: apply <b>${money(i.amt)}</b> to the top-ranked candidate invoice, or request a manual pick.` :
+          i.type==='deal_missing_signed_pdf' ? `Hi ${i.h},<br><br>The HubSpot deal ${i.deal} shows closedwon but there's no signed_agreement file on the record. Can you upload it or point us to it? I'll pause invoice generation until then.` :
+          `Emma has staged a decision for ${i.h}. Approve to auto-resolve, or escalate to reroute.`}
+      </div>
+    </div>
+
+    <div class="dsec"><h4>Audit trail</h4>
+      <div class="audit-feed">
+        <div class="audit-item"><div class="ah">Incident created <span class="ts">${i.age} ago</span></div><div class="ad">source: ${i.src}</div></div>
+        <div class="audit-item emma"><div class="ah">Emma classified <span class="ts">seconds later</span></div><div class="ad">type=${i.type}, confidence 0.94</div></div>
+        <div class="audit-item emma"><div class="ah">Context loaded <span class="ts">+1s</span></div><div class="ad">Invoice ${i.inv} · deal ${i.deal} · amount ${money(i.amt)}</div></div>
+        ${i.st==='resolved' ? `
+          <div class="audit-item human"><div class="ah">${i.h} decided <span class="ts">later</span></div><div class="ad">action taken, before/after snapshot logged</div></div>
+          <div class="audit-item"><div class="ah">Incident closed <span class="ts">just after</span></div><div class="ad">soft-void safe, immutable</div></div>` : `
+          <div class="audit-item"><div class="ah">Awaiting ${i.h}</div><div class="ad">Emma has drafted the resolution above</div></div>`}
+      </div>
+    </div>
+  `;
+  openDrawer('Incident '+i.id, `${i.type} · ${i.c} · handler ${i.h}`, body,
+    `<button class="btn danger" onclick="closeDrawer();toast('warn','Incident '+'${i.id}'+' reversed')">Reverse</button>
+     <button class="btn" onclick="closeDrawer();toast('warn','Escalated to human')">Escalate</button>
+     <button class="btn success" onclick="closeDrawer();toast('success','Emma resolved '+'${i.id}')">Approve</button>`);
+}
+
+/* =====================================================================
+   TOAST
+   ===================================================================== */
+let toastTimer;
+function toast(kind, msg){
+  const t = document.getElementById('toast');
+  t.className = 'toast '+kind+' show';
+  t.textContent = msg;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 3400);
+}
+
+/* =====================================================================
+   RESET
+   ===================================================================== */
+function resetPrototype(){
+  toast('success','Prototype data reset · reloading views');
+  setTimeout(()=>{ location.reload(); }, 900);
+}
+
+/* =====================================================================
+   DEPLOYMENT MODE + CLIENT SWITCHER
+   ===================================================================== */
+const CLIENT_PROFILES = {
+  rally:   {name:'Rally UXR',      reports:'Tara Sen',    started:'Jul 8, 2026',  revenue:'$487K', decisions:5, autoHandled:47,
+            deals:'18', dealsMeta:'3 from webhook, 15 from polling',
+            invoices:'22 · <span style="font-size:20px;color:var(--text-2)">$487K</span>', invoicesMeta:'Auto-approved 14 · human-approved 8',
+            dtc:'34<span style="font-size:14px;color:var(--text-2);font-weight:500"> days</span>',
+            decisionsMeta:'1 approval · 2 unmatched · 1 dispute · 1 writeoff',
+            briefStamp:'Auto-generated at client local time · Rally UXR',
+            brief:[
+              'Overnight I processed <b>3 HubSpot deal-close events for Rally</b>, drafted <b>3 invoices</b> in your Ramp instance ($47K, $28K, $12K).',
+              '1 invoice (<b>$47K Acme Corp</b>) is awaiting your approval — over the $50K finance-lead threshold.',
+              '4 invoices reached <b>Day 8 first-notice today</b>, Ramp auto-sent per cadence.',
+              '1 <b>dispute detected</b> (Meridian Industries) — I paused Ramp\'s cadence and opened incident <code style="font-family:var(--mono);font-size:11px;background:var(--slate-bg);padding:1px 6px;border-radius:4px">INC-4419</code> for Tara to review.',
+              '2 QuickBooks payments held for review — <b>fuzzy-match confidence 0.62 and 0.71</b>, both below 0.85 threshold.'
+            ]},
+  trade:   {name:'Trade Space',    reports:'Tara Sen',    started:'Aug 5, 2026',  revenue:'$212K', decisions:2, autoHandled:19,
+            deals:'11', dealsMeta:'10-12/mo · Salesforce close-won polling',
+            invoices:'11 · <span style="font-size:20px;color:var(--text-2)">$212K</span>', invoicesMeta:'Auto-approved 6 · portal-uploaded 5',
+            dtc:'41<span style="font-size:14px;color:var(--text-2);font-weight:500"> days</span>',
+            decisionsMeta:'1 approval · 1 portal upload pending',
+            briefStamp:'Auto-generated at client local time · Trade Space',
+            brief:[
+              'Overnight I processed <b>2 Salesforce deal-close events for Trade Space</b>, drafted <b>2 invoices</b> in bill.com ($34K University of Michigan, $18K MIT Sloan).',
+              '<b>Portal upload required · 3 in queue:</b> Ariba (U-Mich), Jaggaer (Stanford), Ariba (MIT). Coupa (UT Austin) confirmed yesterday.',
+              '1 invoice (<b>$34K University of Michigan · Ross</b>) is awaiting approval before I can upload to Ariba.',
+              '1 portal upload flagged — Boston University Coupa PO mismatch on line item 2 · incident INC-T-2198.',
+              'No disputes detected. Collections cadence running as configured.'
+            ]},
+  halcyon: {name:'Halcyon Events', reports:'Tara Sen',    started:'Sep 2, 2026',  revenue:'$294K', decisions:1, autoHandled:8,
+            deals:'3', dealsMeta:'3 active contracts · progressive invoicing',
+            invoices:'12 scheduled · <span style="font-size:20px;color:var(--text-2)">$294K</span>', invoicesMeta:'4 paid · 2 sent · 6 scheduled over next 90d',
+            dtc:'32<span style="font-size:14px;color:var(--text-2);font-weight:500"> days</span>',
+            decisionsMeta:'1 approval · 3 active contracts · 12 scheduled invoices',
+            briefStamp:'Auto-generated at client local time · Halcyon Events',
+            brief:[
+              '<b>3 active sponsorship contracts</b> · Vertex Summit, FinTech Forward, DesignOps Next · <b>12 scheduled invoices over next 90 days</b>.',
+              'DesignOps Next contract signed yesterday · I parsed it into a <b>3-invoice milestone schedule</b> ($64K total, deposit due Sep 25).',
+              '<b>INV-VS-03 sent</b> (Vertex Summit pre-event 50% balance · $37K) · awaiting payment against contract due date Oct 1.',
+              'FinTech Forward INV-FF-03 milestone was due today · I issued it per the contract schedule.',
+              '1 approval waiting on you — <b>INV-DN-01 · DesignOps Next deposit $19.2K</b> · deal-owner tier.'
+            ]},
+  all:     {name:'All clients',    reports:'Tara Sen',    started:'Jul 8, 2026',  revenue:'$993K', decisions:8, autoHandled:74,
+            deals:'32', dealsMeta:'Rollup across Rally, Trade Space, Halcyon Events',
+            invoices:'45 · <span style="font-size:20px;color:var(--text-2)">$993K</span>', invoicesMeta:'Rollup: 22 Rally · 11 Trade Space · 12 Halcyon',
+            dtc:'36<span style="font-size:14px;color:var(--text-2);font-weight:500"> days</span>',
+            decisionsMeta:'5 Rally · 2 Trade Space · 1 Halcyon',
+            briefStamp:'Auto-generated at firm local time · rollup across 3 clients',
+            brief:[
+              'Rollup view across <b>Rally UXR, Trade Space, and Halcyon Events</b>. Trailing 12 months: <b>$993K invoiced</b>.',
+              'Sep 26 in progress — <b>$157K invoiced so far</b> with <b>$75K collected</b>. Higher outstanding balance driven by month-end timing.',
+              'Trade Space collection rate <b>78%</b> continues to lag Rally (94%) due to portal-driven delays. Halcyon collection rate <b>92%</b>.',
+              '<b>8 decisions waiting</b> across the book. Highest priority: $47K Acme Corp approval and $37K Vertex Summit pre-event balance.',
+              'Next 90 days forecast: <b>19 scheduled invoices</b> totaling forward pipeline across the three clients.'
+            ]}
+};
+
+let currentMode = 'practice';
+let currentClient = 'rally';
+
+function applyClient(){
+  const p = CLIENT_PROFILES[currentClient];
+  if(!p) return;
+  const who = currentMode==='practice' ? p.name : (document.getElementById('cfgOrgInput')?.value || 'Your company');
+
+  document.getElementById('kpiDeals').textContent = p.deals;
+  document.getElementById('kpiDealsMeta').textContent = p.dealsMeta;
+  document.getElementById('kpiInvoices').innerHTML = p.invoices;
+  document.getElementById('kpiInvoicesMeta').textContent = p.invoicesMeta;
+  document.getElementById('kpiDTC').innerHTML = p.dtc;
+  document.getElementById('kpiDecisions').textContent = p.decisions;
+  document.getElementById('kpiDecisionsMeta').textContent = p.decisionsMeta;
+
+  document.getElementById('briefStamp').textContent = currentMode==='practice' ? p.briefStamp : 'Auto-generated at your company local time';
+  document.getElementById('briefList').innerHTML = p.brief.map(l=>`<li>${l}</li>`).join('');
+
+  // Re-render every client-scoped view so demo can walk each archetype end-to-end
+  renderPipeline();
+  renderApprovals();
+  renderCollections();
+  renderIncidents();
+  renderAudit();
+  renderRevenueSection();
+  renderSchedule();
+}
+
+function setMode(mode){
+  currentMode = mode;
+  const isPractice = mode==='practice';
+  document.getElementById('modeLabel').textContent = isPractice ? 'Practice mode' : 'Direct mode';
+  document.getElementById('orgLabel').textContent = isPractice ? (document.getElementById('cfgOrgInput')?.value || 'GoalTegic Advisory') : 'Your company · Acme Corp';
+  document.getElementById('cliSep').style.display = isPractice ? '' : 'none';
+  document.getElementById('cliWrap').style.display = isPractice ? '' : 'none';
+
+  // Toggle button styling in banner
+  document.getElementById('btnModeDirect').className = 'btn sm' + (isPractice?'':' primary');
+  document.getElementById('btnModePractice').className = 'btn sm' + (isPractice?' primary':'');
+
+  // Toggle button styling in config
+  const cfgD = document.getElementById('cfgModeDirect'); const cfgP = document.getElementById('cfgModePractice');
+  if(cfgD) cfgD.className = 'btn sm' + (isPractice?'':' primary');
+  if(cfgP) cfgP.className = 'btn sm' + (isPractice?' primary':'');
+
+  // Config-level org label + practice-only rows
+  const cfgOrgLbl = document.getElementById('cfgOrgLbl');
+  const cfgSeatRow = document.getElementById('cfgSeatRow');
+  const cfgClientsSection = document.getElementById('cfgClientsSection');
+  if(cfgOrgLbl) cfgOrgLbl.textContent = isPractice ? 'Firm identifier' : 'Company identifier';
+  if(cfgSeatRow) cfgSeatRow.style.display = isPractice ? '' : 'none';
+  if(cfgClientsSection) cfgClientsSection.style.display = isPractice ? '' : 'none';
+
+  if(!isPractice) currentClient = 'rally';
+  applyClient();
+}
+
+document.getElementById('clientSel').addEventListener('change', e=>{
+  currentClient = e.target.value;
+  applyClient();
+  toast('success','Switched to '+CLIENT_PROFILES[currentClient].name);
+});
+document.getElementById('cfgOrgInput')?.addEventListener('input', ()=>{
+  document.getElementById('orgLabel').textContent = document.getElementById('cfgOrgInput').value;
+});
+
+// Revenue-section wiring: sortable table + CSV export
+document.querySelectorAll('#tbl-rev-monthly thead th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.key;
+    if(!key) return;
+    if(revSortState.key === key){ revSortState.dir = -revSortState.dir; }
+    else { revSortState.key = key; revSortState.dir = 1; }
+    renderRevMonthlyTable();
+  });
+});
+document.getElementById('btnRevCsv')?.addEventListener('click', exportRevCsv);
+
+/* =====================================================================
+   INVOICING SCHEDULE
+   ===================================================================== */
+const TODAY_SCH = new Date(2026, 8, 15); // Sep 15 2026 (month is 0-indexed)
+
+const SCHEDULED_INVOICES = {
+  rally: [
+    {id:'SI-R-1024', dueDate:'2026-09-16', client:'Rally UXR', contract:'HS-9128 · Acme MSA',           milestone:'Kickoff invoice',           amount:47000, status:'draft',     linkedDealId:'HS-9128'},
+    {id:'SI-R-1025', dueDate:'2026-09-18', client:'Rally UXR', contract:'HS-9127 · Bluewave SOW',       milestone:'Deposit invoice',           amount:28000, status:'scheduled', linkedDealId:'HS-9127'},
+    {id:'SI-R-1026', dueDate:'2026-09-22', client:'Rally UXR', contract:'HS-9126 · NorthPeak MSA',      milestone:'Kickoff invoice',           amount:34000, status:'scheduled', linkedDealId:'HS-9126'},
+    {id:'SI-R-1027', dueDate:'2026-09-25', client:'Rally UXR', contract:'HS-9125 · Catalyst SOW',       milestone:'Kickoff invoice',           amount:19500, status:'scheduled', linkedDealId:'HS-9125'},
+    {id:'SI-R-1028', dueDate:'2026-09-28', client:'Rally UXR', contract:'HS-9124 · Sagebrush MSA',      milestone:'Kickoff invoice',           amount:52000, status:'scheduled', linkedDealId:'HS-9124'},
+    {id:'SI-R-1029', dueDate:'2026-10-02', client:'Rally UXR', contract:'HS-9123 · Vantage SOW',        milestone:'Kickoff invoice',           amount:41200, status:'scheduled', linkedDealId:'HS-9123'},
+    {id:'SI-R-1030', dueDate:'2026-10-06', client:'Rally UXR', contract:'HS-9122 · Riverline MSA',      milestone:'Kickoff invoice',           amount:38000, status:'scheduled', linkedDealId:'HS-9122'},
+    {id:'SI-R-1031', dueDate:'2026-10-12', client:'Rally UXR', contract:'HS-9121 · Stellar MSA',        milestone:'Kickoff invoice',           amount:29500, status:'scheduled', linkedDealId:'HS-9121'},
+    {id:'SI-R-1032', dueDate:'2026-10-15', client:'Rally UXR', contract:'HS-9120 · Ironclad SOW',       milestone:'Kickoff invoice',           amount:44700, status:'scheduled', linkedDealId:'HS-9120'},
+    {id:'SI-R-1033', dueDate:'2026-10-20', client:'Rally UXR', contract:'HS-9119 · Prism MSA',          milestone:'Kickoff invoice',           amount:26800, status:'scheduled', linkedDealId:'HS-9119'},
+    {id:'SI-R-1034', dueDate:'2026-10-24', client:'Rally UXR', contract:'HS-9118 · Lodestone SOW',      milestone:'Kickoff invoice',           amount:35400, status:'scheduled', linkedDealId:'HS-9118'},
+    {id:'SI-R-1035', dueDate:'2026-11-03', client:'Rally UXR', contract:'HS-9117 · Quantum Bridge MSA', milestone:'Kickoff invoice',           amount:48200, status:'scheduled', linkedDealId:'HS-9117'},
+    {id:'SI-R-1036', dueDate:'2026-11-09', client:'Rally UXR', contract:'HS-9116 · Apex MSA',           milestone:'Kickoff invoice',           amount:32000, status:'scheduled', linkedDealId:'HS-9116'},
+    {id:'SI-R-1037', dueDate:'2026-11-16', client:'Rally UXR', contract:'HS-9115 · Meridian MSA',       milestone:'Kickoff invoice',           amount:21500, status:'scheduled', linkedDealId:'HS-9115'},
+    {id:'SI-R-1038', dueDate:'2026-11-23', client:'Rally UXR', contract:'HS-9114 · Halcyon Group MSA',  milestone:'Kickoff invoice',           amount:56300, status:'scheduled', linkedDealId:'HS-9114'},
+    {id:'SI-R-1039', dueDate:'2026-12-01', client:'Rally UXR', contract:'HS-9113 · Catalyst II SOW',    milestone:'Kickoff invoice',           amount:24500, status:'scheduled', linkedDealId:'HS-9113'},
+    {id:'SI-R-1023', dueDate:'2026-09-08', client:'Rally UXR', contract:'HS-9129 · Ironclad Q3',        milestone:'Kickoff invoice',           amount:31000, status:'sent',      linkedDealId:'HS-9129'},
+    {id:'SI-R-1022', dueDate:'2026-08-28', client:'Rally UXR', contract:'HS-9130 · Prism Q3',           milestone:'Kickoff invoice',           amount:22000, status:'paid',      linkedDealId:'HS-9130'}
+  ],
+  trade: [
+    {id:'SI-T-2044', dueDate:'2026-09-20', client:'Trade Space', contract:'SF-TS-401 · U-Mich SoS',       milestone:'PO Q3 submission',        amount:18500, status:'scheduled', linkedDealId:'SF-TS-401'},
+    {id:'SI-T-2045', dueDate:'2026-09-23', client:'Trade Space', contract:'SF-TS-402 · MIT Sloan',        milestone:'PO Q3 submission',        amount:22400, status:'scheduled', linkedDealId:'SF-TS-402'},
+    {id:'SI-T-2046', dueDate:'2026-09-30', client:'Trade Space', contract:'SF-TS-403 · Stanford GSB',     milestone:'PO Q3 submission',        amount:34200, status:'draft',     linkedDealId:'SF-TS-403'},
+    {id:'SI-T-2047', dueDate:'2026-10-05', client:'Trade Space', contract:'SF-TS-404 · UT Austin McCombs',milestone:'PO Q4 submission',        amount:27800, status:'scheduled', linkedDealId:'SF-TS-404'},
+    {id:'SI-T-2048', dueDate:'2026-10-14', client:'Trade Space', contract:'SF-TS-405 · Boston Univ',      milestone:'PO Q4 submission',        amount:19200, status:'scheduled', linkedDealId:'SF-TS-405'},
+    {id:'SI-T-2049', dueDate:'2026-10-22', client:'Trade Space', contract:'SF-TS-406 · Wharton',          milestone:'PO Q4 submission',        amount:41500, status:'scheduled', linkedDealId:'SF-TS-406'},
+    {id:'SI-T-2050', dueDate:'2026-11-04', client:'Trade Space', contract:'SF-TS-407 · Kellogg',          milestone:'PO Q4 submission',        amount:24700, status:'scheduled', linkedDealId:'SF-TS-407'},
+    {id:'SI-T-2051', dueDate:'2026-11-12', client:'Trade Space', contract:'SF-TS-408 · Haas Berkeley',    milestone:'PO Q4 submission',        amount:32100, status:'scheduled', linkedDealId:'SF-TS-408'},
+    {id:'SI-T-2052', dueDate:'2026-11-19', client:'Trade Space', contract:'SF-TS-409 · Duke Fuqua',       milestone:'PO Q4 submission',        amount:28400, status:'scheduled', linkedDealId:'SF-TS-409'},
+    {id:'SI-T-2053', dueDate:'2026-12-03', client:'Trade Space', contract:'SF-TS-410 · Yale SoM',         milestone:'PO Q4 submission',        amount:36800, status:'scheduled', linkedDealId:'SF-TS-410'},
+    {id:'SI-T-2054', dueDate:'2026-12-10', client:'Trade Space', contract:'SF-TS-411 · Columbia CBS',     milestone:'PO Q4 submission',        amount:29500, status:'scheduled', linkedDealId:'SF-TS-411'},
+    {id:'SI-T-2043', dueDate:'2026-09-10', client:'Trade Space', contract:'SF-TS-400 · Cornell Johnson',  milestone:'PO Q3 submission',        amount:17200, status:'sent',      linkedDealId:'SF-TS-400'},
+    {id:'SI-T-2042', dueDate:'2026-08-25', client:'Trade Space', contract:'SF-TS-399 · Chicago Booth',    milestone:'PO Q3 submission',        amount:21800, status:'paid',      linkedDealId:'SF-TS-399'}
+  ],
+  halcyon: [
+    {id:'SI-H-3011', dueDate:'2026-09-15', client:'Halcyon Events', contract:'DS-HL-207 · TechConf Gold',        milestone:'Contract signing 30%', amount:8400,  status:'sent',      linkedDealId:'DS-HL-207'},
+    {id:'SI-H-3012', dueDate:'2026-11-10', client:'Halcyon Events', contract:'DS-HL-207 · TechConf Gold',        milestone:'Event delivery 40%',   amount:11200, status:'scheduled', linkedDealId:'DS-HL-207'},
+    {id:'SI-H-3013', dueDate:'2026-12-20', client:'Halcyon Events', contract:'DS-HL-207 · TechConf Gold',        milestone:'Post-event 30%',       amount:8400,  status:'scheduled', linkedDealId:'DS-HL-207'},
+    {id:'SI-H-3020', dueDate:'2026-09-25', client:'Halcyon Events', contract:'DS-HL-208 · DesignOps Next',       milestone:'Deposit 30%',          amount:19200, status:'draft',     linkedDealId:'DS-HL-208'},
+    {id:'SI-H-3021', dueDate:'2026-10-30', client:'Halcyon Events', contract:'DS-HL-208 · DesignOps Next',       milestone:'Pre-event 40%',        amount:25600, status:'scheduled', linkedDealId:'DS-HL-208'},
+    {id:'SI-H-3022', dueDate:'2026-12-05', client:'Halcyon Events', contract:'DS-HL-208 · DesignOps Next',       milestone:'Post-event 30%',       amount:19200, status:'scheduled', linkedDealId:'DS-HL-208'},
+    {id:'SI-H-3030', dueDate:'2026-10-01', client:'Halcyon Events', contract:'DS-HL-205 · Vertex Summit',        milestone:'Pre-event balance 50%',amount:37000, status:'sent',      linkedDealId:'DS-HL-205'},
+    {id:'SI-H-3031', dueDate:'2026-11-20', client:'Halcyon Events', contract:'DS-HL-205 · Vertex Summit',        milestone:'Post-event 20%',       amount:14800, status:'scheduled', linkedDealId:'DS-HL-205'},
+    {id:'SI-H-3040', dueDate:'2026-09-15', client:'Halcyon Events', contract:'DS-HL-206 · FinTech Forward',      milestone:'Milestone 3 · 25%',    amount:14500, status:'draft',     linkedDealId:'DS-HL-206'},
+    {id:'SI-H-3041', dueDate:'2026-10-18', client:'Halcyon Events', contract:'DS-HL-206 · FinTech Forward',      milestone:'Milestone 4 · 25%',    amount:14500, status:'scheduled', linkedDealId:'DS-HL-206'},
+    {id:'SI-H-3042', dueDate:'2026-11-25', client:'Halcyon Events', contract:'DS-HL-206 · FinTech Forward',      milestone:'Post-event 25%',       amount:14500, status:'scheduled', linkedDealId:'DS-HL-206'},
+    {id:'SI-H-3050', dueDate:'2026-10-08', client:'Halcyon Events', contract:'DS-HL-209 · CloudOps Summit',      milestone:'Deposit 30%',          amount:16500, status:'scheduled', linkedDealId:'DS-HL-209'},
+    {id:'SI-H-3051', dueDate:'2026-11-15', client:'Halcyon Events', contract:'DS-HL-209 · CloudOps Summit',      milestone:'Pre-event 40%',        amount:22000, status:'scheduled', linkedDealId:'DS-HL-209'},
+    {id:'SI-H-3052', dueDate:'2026-12-15', client:'Halcyon Events', contract:'DS-HL-209 · CloudOps Summit',      milestone:'Post-event 30%',       amount:16500, status:'scheduled', linkedDealId:'DS-HL-209'},
+    {id:'SI-H-3060', dueDate:'2026-10-25', client:'Halcyon Events', contract:'DS-HL-210 · DataCon Platinum',     milestone:'Deposit 25%',          amount:22500, status:'scheduled', linkedDealId:'DS-HL-210'},
+    {id:'SI-H-3061', dueDate:'2026-11-28', client:'Halcyon Events', contract:'DS-HL-210 · DataCon Platinum',     milestone:'Pre-event 50%',        amount:45000, status:'scheduled', linkedDealId:'DS-HL-210'},
+    {id:'SI-H-3062', dueDate:'2027-01-10', client:'Halcyon Events', contract:'DS-HL-210 · DataCon Platinum',     milestone:'Post-event 25%',       amount:22500, status:'scheduled', linkedDealId:'DS-HL-210'},
+    {id:'SI-H-3070', dueDate:'2026-09-12', client:'Halcyon Events', contract:'DS-HL-204 · Retail Roundtable',    milestone:'Balance invoice',      amount:9200,  status:'scheduled', linkedDealId:'DS-HL-204'},
+    {id:'SI-H-3071', dueDate:'2026-09-05', client:'Halcyon Events', contract:'DS-HL-203 · Growth Summit',        milestone:'Balance invoice',      amount:12400, status:'sent',      linkedDealId:'DS-HL-203'},
+    {id:'SI-H-3072', dueDate:'2026-08-30', client:'Halcyon Events', contract:'DS-HL-202 · UX Field Day',         milestone:'Balance invoice',      amount:7800,  status:'paid',      linkedDealId:'DS-HL-202'},
+    {id:'SI-H-3073', dueDate:'2026-08-15', client:'Halcyon Events', contract:'DS-HL-201 · Product Ops Live',     milestone:'Balance invoice',      amount:11400, status:'paid',      linkedDealId:'DS-HL-201'},
+    {id:'SI-H-3074', dueDate:'2026-12-28', client:'Halcyon Events', contract:'DS-HL-211 · InfraCon',             milestone:'Deposit 30%',          amount:18600, status:'scheduled', linkedDealId:'DS-HL-211'},
+    {id:'SI-H-3075', dueDate:'2027-01-25', client:'Halcyon Events', contract:'DS-HL-211 · InfraCon',             milestone:'Pre-event 40%',        amount:24800, status:'scheduled', milestone2:''}
+  ]
+};
+
+// State for schedule tab
+let schTimeframe = '30';
+let schStatus = 'all';
+let schSortDir = 1; // 1 ASC, -1 DESC by dueDate
+
+function getScheduledInvoices(){
+  if(currentClient==='rally')   return SCHEDULED_INVOICES.rally.slice();
+  if(currentClient==='trade')   return SCHEDULED_INVOICES.trade.slice();
+  if(currentClient==='halcyon') return SCHEDULED_INVOICES.halcyon.slice();
+  return SCHEDULED_INVOICES.rally.concat(SCHEDULED_INVOICES.trade, SCHEDULED_INVOICES.halcyon);
+}
+
+function clientKeyOf(inv){
+  if(inv.client === 'Rally UXR') return 'rally';
+  if(inv.client === 'Trade Space') return 'trade';
+  return 'halcyon';
+}
+
+function daysBetween(a, b){
+  const ms = 24*60*60*1000;
+  return Math.round((b - a) / ms);
+}
+
+function parseDate(s){
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
+function fmtDate(d){
+  return d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+}
+
+function schMatchesTimeframe(inv, tf){
+  const dd = parseDate(inv.dueDate);
+  const delta = daysBetween(TODAY_SCH, dd);
+  if(tf==='week') return delta >= 0 && delta <= 7;
+  if(tf==='30')   return delta >= -3 && delta <= 30;
+  if(tf==='90')   return delta >= -3 && delta <= 90;
+  return true;
+}
+
+function schMatchesStatus(inv, st){
+  if(st==='all') return true;
+  return inv.status === st;
+}
+
+function filteredScheduled(){
+  return getScheduledInvoices()
+    .filter(i => schMatchesTimeframe(i, schTimeframe))
+    .filter(i => schMatchesStatus(i, schStatus));
+}
+
+function renderSchedule(){
+  renderScheduleKpis();
+  renderScheduleList();
+  const list = filteredScheduled();
+  const el = document.getElementById('schResultCount');
+  if(el) el.textContent = list.length + ' invoice' + (list.length===1?'':'s') + ' shown';
+}
+
+function renderScheduleKpis(){
+  const all = getScheduledInvoices();
+  const in30 = all.filter(i => { const d = daysBetween(TODAY_SCH, parseDate(i.dueDate)); return d >= 0 && d <= 30 && i.status !== 'paid' && i.status !== 'voided'; });
+  const in90 = all.filter(i => { const d = daysBetween(TODAY_SCH, parseDate(i.dueDate)); return d >= 0 && d <= 90 && i.status !== 'paid' && i.status !== 'voided'; });
+  const overdue = all.filter(i => { const d = daysBetween(TODAY_SCH, parseDate(i.dueDate)); return d < 0 && i.status === 'scheduled'; });
+  const sum = arr => arr.reduce((s,i)=>s+i.amount, 0);
+  const compact = n => n >= 1000 ? '$' + Math.round(n/1000) + 'K' : '$' + n;
+
+  document.getElementById('schKpi30').textContent = in30.length;
+  document.getElementById('schKpi30Meta').textContent = in30.length + ' invoices · ' + compact(sum(in30));
+  document.getElementById('schKpi90').textContent = in90.length;
+  document.getElementById('schKpi90Meta').textContent = in90.length + ' invoices · ' + compact(sum(in90));
+
+  const overdueEl = document.getElementById('schKpiOverdue');
+  overdueEl.textContent = overdue.length;
+  overdueEl.className = 'v' + (overdue.length > 0 ? ' warn-red' : '');
+  document.getElementById('schKpiOverdueMeta').textContent = overdue.length > 0 ? 'Emma should have drafted these' : 'No backlog';
+
+  const upcoming = all
+    .filter(i => daysBetween(TODAY_SCH, parseDate(i.dueDate)) >= 0 && i.status !== 'paid' && i.status !== 'voided')
+    .sort((a,b) => parseDate(a.dueDate) - parseDate(b.dueDate))[0];
+  if(upcoming){
+    document.getElementById('schKpiNext').textContent = fmtDate(parseDate(upcoming.dueDate));
+    document.getElementById('schKpiNextMeta').textContent = upcoming.client + ' · ' + money(upcoming.amount);
+  } else {
+    document.getElementById('schKpiNext').textContent = '—';
+    document.getElementById('schKpiNextMeta').textContent = 'No upcoming scheduled invoices';
+  }
+}
+
+function renderScheduleList(){
+  const tbody = document.querySelector('#tbl-schedule tbody');
+  if(!tbody) return;
+  const rows = filteredScheduled().sort((a,b) => (parseDate(a.dueDate) - parseDate(b.dueDate)) * schSortDir);
+  document.getElementById('schListCount').textContent = rows.length + ' row' + (rows.length===1?'':'s');
+
+  const statusPill = st => {
+    if(st==='paid')      return '<span class="pill green dot">Paid</span>';
+    if(st==='sent')      return '<span class="pill blue dot">Sent</span>';
+    if(st==='draft')     return '<span class="pill amber dot">Draft</span>';
+    if(st==='voided')    return '<span class="pill slate dot">Voided</span>';
+    return '<span class="pill purple dot">Scheduled</span>';
+  };
+
+  tbody.innerHTML = rows.map(i => {
+    const disabled = (i.status==='paid' || i.status==='voided') ? 'disabled style="opacity:.4;pointer-events:none"' : '';
+    return `<tr onclick="openScheduledInvoiceDrawer('${i.id}')">
+      <td class="mono">${i.dueDate}</td>
+      <td>${i.client}</td>
+      <td><span style="color:var(--purple-deep);text-decoration:underline dotted" onclick="event.stopPropagation();openDealDrawer('${i.linkedDealId}')">${i.contract}</span></td>
+      <td>${i.milestone}</td>
+      <td class="num">${money(i.amount)}</td>
+      <td>${statusPill(i.status)}</td>
+      <td>
+        <div class="sch-actions" onclick="event.stopPropagation()">
+          <button class="btn sm" ${disabled} onclick="draftScheduledInvoice('${i.id}')">Draft now</button>
+          <button class="btn sm" ${disabled} onclick="snoozeScheduledInvoice('${i.id}')">Snooze</button>
+          <button class="btn sm danger" ${disabled} onclick="voidScheduledInvoice('${i.id}')">Void</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-3)">No scheduled invoices match the current filters.</td></tr>';
+}
+
+function findScheduled(id){
+  return getScheduledInvoices().find(i => i.id === id) ||
+    SCHEDULED_INVOICES.rally.find(i => i.id === id) ||
+    SCHEDULED_INVOICES.trade.find(i => i.id === id) ||
+    SCHEDULED_INVOICES.halcyon.find(i => i.id === id);
+}
+
+function draftScheduledInvoice(id){
+  const inv = findScheduled(id); if(!inv) return;
+  inv.status = 'draft';
+  toast('success','Drafted ' + inv.id + ' · ' + money(inv.amount) + ' · ready for approval');
+  renderSchedule();
+}
+
+function snoozeScheduledInvoice(id){
+  const inv = findScheduled(id); if(!inv) return;
+  const reason = prompt('Snooze reason (logged to audit trail):', 'Client requested delay');
+  if(reason === null) return;
+  const d = parseDate(inv.dueDate);
+  d.setDate(d.getDate() + 7);
+  inv.dueDate = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  toast('success','Snoozed ' + inv.id + ' by 7 days · reason logged');
+  renderSchedule();
+}
+
+function voidScheduledInvoice(id){
+  const inv = findScheduled(id); if(!inv) return;
+  if(!confirm('Void scheduled invoice ' + inv.id + '? This is a soft-void and can be reversed by finance.')) return;
+  inv.status = 'voided';
+  toast('success','Voided ' + inv.id + ' · audit event logged');
+  renderSchedule();
+}
+
+function openScheduledInvoiceDrawer(id){
+  const inv = findScheduled(id); if(!inv) return;
+  const deal = findDeal(inv.linkedDealId);
+  const contractRow = deal && deal.contract ? `
+    <div class="dsec"><h4>Source contract</h4>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span class="mono" style="font-size:11.5px">${deal.contract.filename}</span>
+        <span style="color:var(--text-3);font-size:11.5px">Signed ${deal.contract.signed_date} · ${deal.contract.pages} pages</span>
+        <button class="btn sm" onclick="openContractModal('${inv.linkedDealId}')">View contract</button>
+        <button class="btn sm" onclick="openDealDrawer('${inv.linkedDealId}')">Open deal</button>
+      </div>
+    </div>` : `
+    <div class="dsec"><h4>Source</h4>
+      <div style="color:var(--text-3);font-size:12px">Linked deal ${inv.linkedDealId} — <span style="color:var(--purple-deep);cursor:pointer;text-decoration:underline dotted" onclick="openDealDrawer('${inv.linkedDealId}')">→ Source contract</span></div>
+    </div>`;
+  const draftPreview = inv.status === 'draft' ? `
+    <div class="dsec"><h4>Draft preview</h4>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;line-height:1.6">
+        <div><b>Invoice ${inv.id.replace('SI-','INV-')}</b></div>
+        <div>Bill to: ${inv.client}</div>
+        <div>Milestone: ${inv.milestone}</div>
+        <div>Amount: <span class="mono">${money(inv.amount)}</span></div>
+        <div>Due: ${fmtDate(parseDate(inv.dueDate))}</div>
+        <div style="color:var(--text-3);margin-top:6px">Ready for approval routing per matrix.</div>
+      </div>
+    </div>` : '';
+  const body = `
+    <div class="dsec"><h4>Scheduled invoice</h4>
+      <div class="recon-row"><span class="k">ID</span><span class="v mono">${inv.id}</span></div>
+      <div class="recon-row"><span class="k">Client</span><span class="v">${inv.client}</span></div>
+      <div class="recon-row"><span class="k">Contract</span><span class="v">${inv.contract}</span></div>
+      <div class="recon-row"><span class="k">Milestone</span><span class="v">${inv.milestone}</span></div>
+      <div class="recon-row"><span class="k">Amount</span><span class="v mono">${money(inv.amount)}</span></div>
+      <div class="recon-row"><span class="k">Due date</span><span class="v">${fmtDate(parseDate(inv.dueDate))}</span></div>
+      <div class="recon-row"><span class="k">Status</span><span class="v">${inv.status}</span></div>
+    </div>
+    ${draftPreview}
+    ${contractRow}
+  `;
+  const foot = `
+    <button class="btn" onclick="closeDrawer()">Close</button>
+    <button class="btn primary" onclick="draftScheduledInvoice('${inv.id}');closeDrawer()">Draft now</button>
+  `;
+  openDrawer('Scheduled · ' + inv.milestone, inv.id + ' · ' + inv.client, body, foot);
+}
+
+function openGenerateAheadModal(){
+  const upcoming = getScheduledInvoices().filter(i => {
+    const d = daysBetween(TODAY_SCH, parseDate(i.dueDate));
+    return d >= 0 && d <= 14 && i.status === 'scheduled';
+  });
+  if(upcoming.length === 0){
+    toast('success','Nothing to generate ahead in the next 14 days');
+    return;
+  }
+  const total = upcoming.reduce((s,i)=>s+i.amount, 0);
+  const body = `
+    <div class="dsec"><h4>Bulk generate upcoming drafts</h4>
+      <div style="color:var(--text-2);margin-bottom:8px">Emma will draft ${upcoming.length} invoice${upcoming.length===1?'':'s'} totaling <b>${money(total)}</b> now (rather than waiting for each due date). All will route through the approval matrix.</div>
+      <table class="t"><thead><tr><th>ID</th><th>Client</th><th>Milestone</th><th>Due</th><th class="num">Amount</th></tr></thead>
+      <tbody>${upcoming.map(i=>`<tr><td class="mono">${i.id}</td><td>${i.client}</td><td>${i.milestone}</td><td class="mono">${i.dueDate}</td><td class="num">${money(i.amount)}</td></tr>`).join('')}</tbody></table>
+    </div>`;
+  const foot = `
+    <button class="btn" onclick="closeDrawer()">Cancel</button>
+    <button class="btn primary" onclick="bulkGenerateAhead()">Generate ${upcoming.length} drafts</button>
+  `;
+  openDrawer('Generate ahead', 'Next 14 days · ' + upcoming.length + ' invoices', body, foot);
+}
+
+function bulkGenerateAhead(){
+  let n = 0;
+  getScheduledInvoices().forEach(i => {
+    const d = daysBetween(TODAY_SCH, parseDate(i.dueDate));
+    if(d >= 0 && d <= 14 && i.status === 'scheduled'){
+      i.status = 'draft'; n++;
+    }
+  });
+  closeDrawer();
+  toast('success','Generated ' + n + ' drafts · routed for approval');
+  renderSchedule();
+}
+
+function exportScheduleCsv(){
+  const rows = filteredScheduled();
+  const header = ['ID','Due date','Client','Contract','Milestone','Amount','Status','Linked deal'];
+  const body = rows.map(i => [i.id, i.dueDate, i.client, i.contract, i.milestone, i.amount, i.status, i.linkedDealId]);
+  const csv = [header, ...body].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'invoicing-schedule-'+currentClient+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 500);
+  toast('success','Exported invoicing schedule CSV');
+}
+
+// Timeframe chips
+document.querySelectorAll('.sch-chip[data-schtf]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.sch-chip[data-schtf]').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    schTimeframe = chip.dataset.schtf;
+    renderSchedule();
+  });
+});
+
+// Status chips
+document.querySelectorAll('.sch-chip[data-schst]').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.sch-chip[data-schst]').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    schStatus = chip.dataset.schst;
+    renderSchedule();
+  });
+});
+
+// List column sort (due date)
+document.querySelectorAll('#tbl-schedule thead th[data-schsort]').forEach(th => {
+  th.addEventListener('click', () => {
+    schSortDir = -schSortDir;
+    th.textContent = 'Due date ' + (schSortDir===1?'▲':'▼');
+    renderScheduleList();
+  });
+});
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+renderPipeline();
+renderApprovals();
+renderCash('matched');
+renderCollections();
+renderIncidents();
+renderAudit();
+renderRevenueSection();
+renderSchedule();
+setMode('practice');
+
+/* =====================================================================
+   LIVE DATA — real HubSpot deals, fetched from server.py's /api/deals.
+   Scoped to Deal Pipeline / contracts only, by design: Approvals, Cash
+   Application, Collections, Incidents, and Audit stay as the existing
+   demo data above, since those workflows aren't built yet. Real deals
+   are marked with real:true and get a "Live" badge on their card so
+   they're never confused with the surrounding demo data.
+   ===================================================================== */
+async function loadRealDeals(refresh){
+  try{
+    const res = await fetch('/api/deals' + (refresh ? '?refresh=1' : ''));
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const payload = await res.json();
+    if(payload.error){
+      toast('warn', 'Live HubSpot deals unavailable: ' + payload.error);
+      return;
+    }
+    // remove any previously-merged real deals, then merge the fresh set in
+    for(let i = DEALS.length - 1; i >= 0; i--){ if(DEALS[i].real) DEALS.splice(i, 1); }
+    DEALS.unshift(...payload.deals);
+    renderPipeline();
+    if(payload.deals.length){
+      toast('success', payload.deals.length + ' real HubSpot deal(s) loaded');
+    }
+  }catch(e){
+    toast('warn', 'Could not reach the live deals API — is server.py running? (' + e.message + ')');
+  }
+}
+loadRealDeals(false);
+</script>
+
+<!--
+  Audit trail
+  2026-09-15 · Claude · Built Emma Revenue Cycle Coworker workspace prototype with 8 tabs and 17 incident types
+  2026-09-15 · Claude · Refit Emma to Activate coworker pattern, added practice mode + client switcher, reframed as sits-above-invoicing-tool
+  2026-09-15 · Claude · Matched Emma coworker card design to Priya's exact Activate layout
+  2026-09-15 · Claude · Matched primary sidebar exactly to Lumina Activate reference design
+  2026-09-15 · Claude · Completed end-to-end journeys for Rally / Trade Space / Halcyon Events use cases + fixed broken links
+  2026-09-15 · Claude · Added revenue-over-time view (12-mo chart + monthly breakdown table + 90-day forward schedule)
+  2026-09-15 · Claude · Replaced JSON reconciliation display with formatted view + added contract viewer to deal drawer
+  2026-09-15 · Claude · Added Invoicing schedule tab as peer to Deal pipeline (Calendar / Timeline / List views)
+  2026-09-15 · Claude · Simplified Invoicing schedule tab — removed Calendar and Timeline views, kept only List view
+-->
+</body>
+</html>

@@ -1,0 +1,206 @@
+#!/usr/bin/env python3
+"""Serves emma_workspace.html plus a real /api/deals endpoint backed by the
+actual HubSpot + LLM pipeline (same modules run_pipeline.py uses).
+
+Only the Deal Pipeline / contract data is real here, by design — Approvals,
+Cash Application, Collections, Incidents, and Audit stay as the existing
+mock data in emma_workspace.html; those workflows don't exist yet.
+
+Real deals are computed once and cached in memory (LLM calls aren't free
+and this project has already hit real rate limits calling too often) --
+hit /api/deals?refresh=1 to force a recompute.
+
+Usage:
+    python server.py [port]        # default port 8600
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+import time
+from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
+ROOT = Path(__file__).parent.parent  # Hubspot-Integration/ -- config.py, integrations/, etc. live here
+sys.path.insert(0, str(ROOT))
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
+from config import load_settings
+from content_extractor import extract
+from pdf_text import extract_text
+
+UI_DIR = Path(__file__).parent
+
+_cache: dict = {"deals": None, "computed_at": 0.0, "error": None}
+_CACHE_TTL_SECONDS = 300  # re-fetch at most every 5 minutes even without ?refresh=1
+
+
+def _prio_for(amount: float) -> str:
+    if amount >= 50_000:
+        return "high"
+    if amount >= 15_000:
+        return "med"
+    return "low"
+
+
+def _fmt_signed_date(iso_date: str | None) -> str:
+    if not iso_date:
+        return "—"
+    try:
+        return datetime.fromisoformat(iso_date).strftime("%b %d, %Y")
+    except ValueError:
+        return iso_date
+
+
+def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int) -> dict:
+    confs = [c for c in confidence.values() if c is not None]
+    avg_conf = round(sum(confs) / len(confs), 2) if confs else 0.0
+    total = fields.get("stated_total") or deal.amount or 0
+    billing_email = deal.billing_email or fields.get("billing_email") or ""
+    party_to_domain = billing_email.split("@")[-1] if "@" in billing_email else "—"
+
+    return {
+        "id": deal.deal_id,
+        "c": fields.get("customer_legal_name") or deal.company_legal_name or deal.deal_name,
+        "amt": total,
+        "stage": "extract",  # honest: extraction is what's real; draft/approval/sent/tracking/paid aren't built
+        "days": 0,
+        "prio": _prio_for(total),
+        "owner": "—",  # not fetched from HubSpot today -- no deal-owner API call exists yet
+        "terms": fields.get("payment_terms") or "—",
+        "extractedAt": datetime.now().strftime("%b %d, %H:%M"),
+        "conf": avg_conf,
+        "real": True,
+        "contract": {
+            "filename": agreement.filename,
+            "signed_date": _fmt_signed_date(fields.get("effective_date")),
+            "pages": page_count,
+            "size_kb": round(len(agreement.content) / 1024),
+            "party_from": "Rally, Inc.",
+            "party_from_domain": "rally.example",
+            "party_to": fields.get("customer_legal_name") or deal.company_legal_name,
+            "party_to_domain": party_to_domain,
+            "signatories": [],  # not extracted -- no signatory-name field in the schema; not fabricated
+            "mock_body": "",  # filled in below with real extracted text
+        },
+    }
+
+
+def compute_deals() -> list[dict]:
+    from integrations.hubspot import HubSpotClient, NoAgreementFound
+    import pdfplumber
+    import io
+
+    settings = load_settings()
+    if settings.hubspot_mode != "live":
+        raise RuntimeError("HUBSPOT_MODE is not 'live' -- set it in .env to fetch real deals")
+
+    client = HubSpotClient(settings.hubspot_token)
+    out = []
+    for deal in client.list_closed_deals(limit=10):
+        if not deal.agreement_ref:
+            continue
+        try:
+            agreement = client.get_agreement(deal.agreement_ref)
+        except NoAgreementFound:
+            continue
+
+        parsed = extract_text(agreement.content)
+        if parsed.needs_ocr:
+            continue
+        result = extract(parsed.text, settings)
+
+        try:
+            with pdfplumber.open(io.BytesIO(agreement.content)) as pdf:
+                page_count = len(pdf.pages)
+        except Exception:
+            page_count = 1
+
+        built = _build_deal(deal, agreement, result.fields, result.confidence, page_count)
+        built["contract"]["mock_body"] = parsed.text[:4000]
+        out.append(built)
+
+    return out
+
+
+def get_deals(force_refresh: bool = False) -> tuple[list[dict], str | None]:
+    stale = time.time() - _cache["computed_at"] > _CACHE_TTL_SECONDS
+    if force_refresh or _cache["deals"] is None or stale:
+        try:
+            _cache["deals"] = compute_deals()
+            _cache["error"] = None
+        except Exception as exc:
+            _cache["error"] = str(exc)
+            if _cache["deals"] is None:
+                _cache["deals"] = []
+        _cache["computed_at"] = time.time()
+    return _cache["deals"], _cache["error"]
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "EmmaUI/0.1"
+
+    def log_message(self, fmt, *args) -> None:
+        sys.stderr.write(f"{self.address_string()} - {fmt % args}\n")
+
+    def _send_json(self, payload) -> None:
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self) -> None:  # noqa: N802
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        if path == "/api/deals":
+            force = parse_qs(parsed.query).get("refresh", ["0"])[0] == "1"
+            deals, error = get_deals(force_refresh=force)
+            self._send_json({"deals": deals, "error": error, "computed_at": _cache["computed_at"]})
+            return
+
+        if path == "/":
+            path = "/emma_workspace.html"
+
+        target = (UI_DIR / path.lstrip("/")).resolve()
+        try:
+            target.relative_to(UI_DIR.resolve())
+        except ValueError:
+            self.send_response(404)
+            self.end_headers()
+            return
+        if not target.is_file():
+            self.send_response(404)
+            self.end_headers()
+            return
+
+        data = target.read_bytes()
+        content_type = "text/html; charset=utf-8" if target.suffix == ".html" else "application/octet-stream"
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+
+def main() -> None:
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8600
+    httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    print(f"Emma UI (live HubSpot deals) — http://127.0.0.1:{port}")
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        httpd.server_close()
+
+
+if __name__ == "__main__":
+    main()
