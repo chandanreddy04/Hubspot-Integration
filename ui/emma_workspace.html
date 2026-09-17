@@ -2056,9 +2056,89 @@ document.addEventListener('click', function(e){
   renderPipeline();
 });
 
+function _dueDateFromTerms(terms){
+  const m = /Net\s*(\d+)/i.exec(terms||'');
+  const days = m ? parseInt(m[1],10) : 30;
+  const dt = new Date();
+  dt.setDate(dt.getDate() + days);
+  return dt.toISOString().slice(0,10);
+}
+
+// Creates (or, on re-approve, updates in place) a real Invoice Pipeline
+// entry from an extracted deal's autofilled fields -- this is what makes
+// "Approve deal" actually issue something, instead of just flipping a
+// status flag with no invoice record behind it.
+function createOrUpdateInvoiceFromDeal(d){
+  const items = _dealLineItems(d);
+  const invId = 'INV-' + String(d.id).replace(/[^A-Za-z0-9]/g,'');
+  const pool = INVOICE_PIPELINE.rally;
+  const dueDate = _dueDateFromTerms(d.terms);
+  const milestone = items.length
+    ? items.length + ' line item' + (items.length===1?'':'s') + ' · from contract'
+    : 'Contract total · line items not extracted';
+  const ctag = d.id + ' · ' + (d.contract ? d.contract.filename : d.c);
+  let inv = pool.find(x=>x.id===invId);
+  if(inv){
+    inv.amount = d.amt;
+    inv.dueDate = dueDate;
+    inv.milestone = milestone;
+    inv.ctag = ctag;
+    inv.customer = d.c;
+    inv.lineItems = items;
+    inv.approvedAt = (typeof nowStamp === 'function' ? nowStamp(0) : new Date().toISOString());
+  } else {
+    inv = {
+      id: invId,
+      client: 'Rally UXR',
+      customer: d.c,
+      ctag: ctag,
+      milestone: milestone,
+      amount: d.amt,
+      dueDate: dueDate,
+      stage: 'draft',
+      prio: d.prio || 'med',
+      linkedDealId: d.id,
+      real: true,
+      approvedAt: (typeof nowStamp === 'function' ? nowStamp(0) : new Date().toISOString()),
+      lineItems: items,
+    };
+    pool.unshift(inv);
+  }
+  return inv;
+}
+
+function sendRealInvoice(invId){
+  const inv = INVOICE_PIPELINE.rally.find(x=>x.id===invId); if(!inv) return;
+  inv.stage = 'sent';
+  if(typeof AUDIT !== 'undefined' && Array.isArray(AUDIT)){
+    AUDIT.unshift({
+      ts: (typeof nowStamp === 'function' ? nowStamp(0) : '2026-09-15'),
+      ev: 'invoice_sent', ent: 'invoice', actor: 'Alex Rivera',
+      target: inv.id, rationale: 'Sent to ' + (inv.ctag||'').split(' · ')[0]
+    });
+  }
+  renderInvoicePipeline();
+  closeDrawer();
+  toast('success', inv.id + ' marked sent');
+}
+
 function approveDeal(id){
   const d = findDeal(id); if(!d) return;
   d.review = 'approved';
+  if(d.real){
+    const inv = createOrUpdateInvoiceFromDeal(d);
+    if(typeof AUDIT !== 'undefined' && Array.isArray(AUDIT)){
+      AUDIT.unshift({
+        ts: (typeof nowStamp === 'function' ? nowStamp(0) : '2026-09-15'),
+        ev: 'invoice_drafted', ent: 'invoice', actor: 'Alex Rivera',
+        target: inv.id, rationale: 'Approved ' + d.id + ' · invoice autofilled from extracted contract terms'
+      });
+    }
+    renderPipeline();
+    renderInvoicePipeline();
+    toast('success', `Approved · ${inv.id} created from contract, staged in Draft`);
+    return;
+  }
   const sched = (typeof HALCYON_SCHEDULE !== 'undefined' && HALCYON_SCHEDULE[d.id]) || [];
   const n = d.progressive ? (sched.length || 5) : 1;
   renderPipeline();
@@ -2377,7 +2457,7 @@ function invoiceCardHTML(c){
      ondragend="this.classList.remove('dragging')"
      onclick="openInvoicePipelineDrawer('${c.id}')">
     <div class="kt"><span class="id">${c.id}</span><span class="pill ${prio} dot">${c.prio}</span></div>
-    <div class="cust">${customer}</div>
+    <div class="cust">${customer}${c.real ? ' <span class="pill green dot" style="font-size:9.5px;margin-left:4px">Live</span>' : ''}</div>
     <div style="font-size:11.5px;color:var(--text-3);margin-top:2px">${muted}</div>
     <div style="font-size:11.5px;color:var(--text-2);margin-top:4px">${c.milestone}</div>
     <div class="kmeta"><span class="amt">${money(c.amount)}</span><span style="color:var(--text-3)">due ${c.dueDate}</span></div>
@@ -2404,6 +2484,8 @@ function openInvoicePipelineDrawer(id){
   const stColor = inv.stage==='paid'?'green':inv.stage==='sent'?'blue':inv.stage==='approval'?'orange':inv.stage==='draft'?'amber':'purple';
   const stLabel = INVOICE_PIPELINE_STAGES.find(s=>s.k===inv.stage);
   const deal = findDeal(inv.linkedDealId);
+  const liveTag = inv.real ? ' <span class="pill green dot" style="font-size:9.5px;margin-left:6px">Live</span>' : '';
+  const custName = customerFor(inv);
   const dealRow = deal ? `
     <div class="dsec"><h4>Source contract</h4>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -2415,9 +2497,14 @@ function openInvoicePipelineDrawer(id){
     <div class="dsec"><h4>Source</h4>
       <div style="color:var(--text-3);font-size:12px">Linked deal ${inv.linkedDealId}</div>
     </div>`;
+  const items = (Array.isArray(inv.lineItems) && inv.lineItems.length)
+    ? inv.lineItems.map(li=>({ desc: li.desc, dateRange: '', qty: li.qty, unit: li.unit, amount: li.amount }))
+    : (inv.real
+        ? [{ desc: 'Contract total (line items not extracted)', dateRange: 'Due ' + inv.dueDate, qty:1, unit:inv.amount, amount:inv.amount }]
+        : [{ desc: inv.milestone, dateRange: 'Due ' + inv.dueDate, qty:1, unit:inv.amount, amount:inv.amount }]);
   const body = `
     <div class="dg">
-      <div class="dfield mono"><div class="l">Invoice #</div><div class="v">${inv.id}</div></div>
+      <div class="dfield mono"><div class="l">Invoice #</div><div class="v">${inv.id}${liveTag}</div></div>
       <div class="dfield"><div class="l">Client</div><div class="v">${inv.client}</div></div>
       <div class="dfield"><div class="l">Contract</div><div class="v">${inv.ctag}</div></div>
       <div class="dfield"><div class="l">Milestone</div><div class="v">${inv.milestone}</div></div>
@@ -2434,17 +2521,18 @@ function openInvoicePipelineDrawer(id){
         issueDate: inv.dueDate,
         dueDate: inv.dueDate,
         seller: sellerFor(inv.linkedDealId),
-        billTo: billToFor(inv.client),
+        billTo: billToFor(custName),
         amount: inv.amount,
         currency: 'USD',
-        lineItems: [
-          { desc: inv.milestone, dateRange: 'Due ' + inv.dueDate, qty:1, unit:inv.amount, amount:inv.amount }
-        ]
+        lineItems: items
       })}
     </div>
   `;
+  const sendBtn = (inv.real && inv.stage==='draft')
+    ? `<button class="btn primary" onclick="sendRealInvoice('${inv.id}')">Send invoice</button>`
+    : '';
   openDrawer('Invoice · '+inv.id, `${inv.client} · ${inv.ctag}`, body,
-    `<button class="btn" onclick="closeDrawer()">Close</button>`);
+    `<button class="btn" onclick="closeDrawer()">Close</button>${sendBtn}`);
 }
 
 /* =====================================================================
@@ -2650,6 +2738,7 @@ function openDealDrawer(id, editMode){
   const d = findDeal(id); if(!d) return;
   const review = dealReviewStatus(d);
   const reviewChip = `<span class="pill ${review.tone} dot">${review.label}</span>`;
+  const linkedInvoice = d.real ? INVOICE_PIPELINE.rally.find(x=>x.linkedDealId===d.id) : null;
   editMode = !!editMode;
   const items = _dealLineItems(d);
   const termsOptions = ['Net 15','Net 30','Net 45','Net 60','Due on receipt','Custom'];
@@ -2745,9 +2834,10 @@ function openDealDrawer(id, editMode){
     </div>
     ${contractSectionHTML(d, editMode)}
     <div class="dsec"><h4>Review status</h4>
-      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px">
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap">
         ${reviewChip}
-        <span style="color:var(--text-2);font-size:12px">${review.key==='awaiting' ? 'Parsed and staged for your review. Approve to unlock invoicing.' : review.key==='approved' ? 'Approved. Scheduled invoices are live on the invoicing schedule.' : review.key==='failed' ? 'Parser could not extract contract terms. Enter them manually.' : ''}</span>
+        <span style="color:var(--text-2);font-size:12px">${review.key==='awaiting' ? 'Parsed and staged for your review. Approve to unlock invoicing.' : review.key==='approved' ? (d.real ? 'Approved. Invoice autofilled from the contract and staged in Draft.' : 'Approved. Scheduled invoices are live on the invoicing schedule.') : review.key==='failed' ? 'Parser could not extract contract terms. Enter them manually.' : ''}</span>
+        ${linkedInvoice ? `<button class="btn sm" style="margin-left:auto" onclick="openInvoicePipelineDrawer('${linkedInvoice.id}')">View invoice ${linkedInvoice.id}</button>` : ''}
       </div>
     </div>
     ${manualEntryHTML}

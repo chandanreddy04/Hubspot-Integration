@@ -38,6 +38,13 @@ _SCHEMA_HINT = {
     "currency": "ISO code, e.g. USD",
     "stated_total": "number — the total contract value stated in the document",
     "signed": "boolean — is the agreement signed by both parties",
+    "line_items": (
+        "array of {description, quantity, unit_price, amount} — the itemized "
+        "services/products billed, only if the contract actually lists them "
+        "separately (e.g. an Exhibit/SOW pricing table). Return an empty array "
+        "if the contract only states a single total with no breakdown — do not "
+        "invent a split."
+    ),
 }
 
 _PROMPT = (
@@ -45,6 +52,8 @@ _PROMPT = (
     "Return ONLY a JSON object with these keys (no prose):\n"
     f"{json.dumps(_SCHEMA_HINT, indent=2)}\n"
     "Also return a parallel object 'confidence' mapping each key to a 0..1 number.\n"
+    "For line_items, confidence reflects how confident you are in the itemized breakdown "
+    "as a whole (0 if you returned an empty array because none was found).\n"
     "Wrap the whole thing as {\"fields\": {...}, \"confidence\": {...}}.\n\n"
     "AGREEMENT:\n"
 )
@@ -186,6 +195,12 @@ def extract_heuristic(agreement_text: str) -> ExtractionResult:
     fields["signed"] = any(h in lowered for h in _SIGNED_HINTS)
     conf["signed"] = 0.6
 
+    # No regex-based table parsing is built -- an itemized breakdown needs
+    # real structure understanding a pattern match can't reliably do, so
+    # this is an honest gap rather than an invented split.
+    fields["line_items"] = []
+    conf["line_items"] = 0.0
+
     return ExtractionResult(fields=fields, confidence=conf, method="heuristic")
 
 
@@ -234,7 +249,9 @@ def _merge_results(results: list[ExtractionResult]) -> ExtractionResult:
         for r in results:
             c = r.confidence.get(key, 0.0) or 0.0
             v = r.fields.get(key)
-            if v is not None and c > best_conf:
+            # v == [] means "no items found in this chunk", same as None --
+            # but v == False (e.g. signed) must still be allowed through.
+            if v is not None and v != [] and c > best_conf:
                 best_conf, best_val = c, v
         merged_fields[key] = best_val
         merged_conf[key] = best_conf

@@ -58,6 +58,26 @@ def _fmt_signed_date(iso_date: str | None) -> str:
         return iso_date
 
 
+def _build_line_items(raw: list | None) -> list[dict]:
+    """Reshape the extractor's {description, quantity, unit_price, amount}
+    dicts into the {desc, qty, unit, amount} the UI's invoice tables expect.
+    Returns [] when nothing was extracted -- the UI already renders that as
+    an honest "not extracted" gap rather than a fabricated split."""
+    if not raw:
+        return []
+    items = []
+    for it in raw:
+        if not isinstance(it, dict):
+            continue
+        items.append({
+            "desc": it.get("description") or "—",
+            "qty": it.get("quantity") if it.get("quantity") is not None else 1,
+            "unit": it.get("unit_price") if it.get("unit_price") is not None else 0,
+            "amount": it.get("amount") if it.get("amount") is not None else 0,
+        })
+    return items
+
+
 def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int) -> dict:
     confs = [c for c in confidence.values() if c is not None]
     avg_conf = round(sum(confs) / len(confs), 2) if confs else 0.0
@@ -77,6 +97,7 @@ def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int
         "extractedAt": datetime.now().strftime("%b %d, %H:%M"),
         "conf": avg_conf,
         "real": True,
+        "lineItems": _build_line_items(fields.get("line_items")),
         "contract": {
             "filename": agreement.filename,
             "signed_date": _fmt_signed_date(fields.get("effective_date")),
