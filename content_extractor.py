@@ -4,12 +4,21 @@ Two modes, chosen by config.Settings.llm_mode (independent of HUBSPOT_MODE —
 you can pull real contracts from HubSpot while still using the free-text
 fallback here, or vice versa):
 
-  - "live": one call to the real Anthropic Messages API (needs
-    ANTHROPIC_API_KEY). Same prompt/schema shape as rally-ar-agent's
-    integrations/llm_live.py.
+  - "live": a real call to Anthropic or Groq (needs the matching API key).
+    Same prompt/schema shape as rally-ar-agent's integrations/llm_live.py.
   - "mock": no API call — a handful of regex heuristics over the raw text.
     Good enough to prove the pipeline end-to-end with zero credentials;
     not a substitute for the LLM step on real, varied contract language.
+
+Long documents (20-30+ page contracts) are chunked automatically before
+being sent to a live provider — a single real request over that size risks
+exceeding a provider's per-request/per-minute token budget (hit this for
+real on Groq's free tier: an accidentally-oversized ~49KB request came back
+"HTTP 413 ... tokens per minute (TPM): Limit 8000"). Each chunk is asked the
+same question independently; results are merged by taking, per field, the
+answer with the highest reported confidence across all chunks — real
+billing terms typically appear once, in one section, so exactly one chunk
+should report each field with real confidence and the rest should report 0.
 """
 
 from __future__ import annotations
@@ -180,9 +189,66 @@ def extract_heuristic(agreement_text: str) -> ExtractionResult:
     return ExtractionResult(fields=fields, confidence=conf, method="heuristic")
 
 
+# -- chunking for long documents ------------------------------------------ #
+# ~4,000 tokens/chunk (4 chars/token heuristic), leaving headroom under
+# Groq's free-tier 8,000 TPM limit once the ~300-token prompt/schema
+# overhead and the model's response are added on top.
+_CHUNK_CHAR_LIMIT = 16_000
+
+
+def _split_into_chunks(text: str, limit: int = _CHUNK_CHAR_LIMIT) -> list[str]:
+    if len(text) <= limit:
+        return [text]
+
+    paragraphs = text.split("\n\n")
+    chunks: list[str] = []
+    current: list[str] = []
+    current_len = 0
+    for para in paragraphs:
+        # a single paragraph longer than the whole limit (rare) gets hard-split
+        if len(para) > limit:
+            if current:
+                chunks.append("\n\n".join(current))
+                current, current_len = [], 0
+            for i in range(0, len(para), limit):
+                chunks.append(para[i : i + limit])
+            continue
+        if current_len + len(para) + 2 > limit and current:
+            chunks.append("\n\n".join(current))
+            current, current_len = [], 0
+        current.append(para)
+        current_len += len(para) + 2
+    if current:
+        chunks.append("\n\n".join(current))
+    return chunks
+
+
+def _merge_results(results: list[ExtractionResult]) -> ExtractionResult:
+    if len(results) == 1:
+        return results[0]
+
+    merged_fields: dict = {}
+    merged_conf: dict[str, float] = {}
+    for key in _SCHEMA_HINT:
+        best_conf, best_val = 0.0, None
+        for r in results:
+            c = r.confidence.get(key, 0.0) or 0.0
+            v = r.fields.get(key)
+            if v is not None and c > best_conf:
+                best_conf, best_val = c, v
+        merged_fields[key] = best_val
+        merged_conf[key] = best_conf
+
+    methods = {r.method for r in results}
+    method = f"{methods.pop()} (chunked x{len(results)})" if len(methods) == 1 else f"mixed (chunked x{len(results)})"
+    return ExtractionResult(fields=merged_fields, confidence=merged_conf, method=method)
+
+
 def extract(agreement_text: str, settings: Settings) -> ExtractionResult:
-    if settings.llm_mode == "live":
-        if settings.llm_provider == "groq":
-            return extract_groq(agreement_text, settings)
-        return extract_anthropic(agreement_text, settings)
-    return extract_heuristic(agreement_text)
+    if settings.llm_mode != "live":
+        return extract_heuristic(agreement_text)
+
+    call = extract_groq if settings.llm_provider == "groq" else extract_anthropic
+    chunks = _split_into_chunks(agreement_text)
+    results = [call(chunk, settings) for chunk in chunks]
+    return _merge_results(results)
