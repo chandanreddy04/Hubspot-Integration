@@ -1165,7 +1165,7 @@ function dealReviewStatus(d){
   if(d.review === 'awaiting') return {key:'awaiting',  label:'Awaiting review',   tone:'amber'};
   const s = d.stage;
   if(s==='sent' || s==='tracking' || s==='paid') return {key:'approved', label:'Approved', tone:'green'};
-  if((s==='trigger' || s==='extract') && (!d.conf || d.conf < 0.75)) return {key:'failed', label:'Failed extraction', tone:'red'};
+  if((s==='trigger' || s==='extract') && (!d.conf || d.conf < 0.85)) return {key:'failed', label:'Failed extraction', tone:'red'};
   return {key:'awaiting', label:'Awaiting review', tone:'amber'};
 }
 
@@ -2846,9 +2846,10 @@ function openDealDrawer(id, editMode){
     <div class="dsec"><h4>Extracted PDF terms</h4>
       <div class="dg">
         <div class="dfield"><div class="l">Confidence</div><div class="v">${d.conf?d.conf.toFixed(2):'—'}${d.conf&&d.conf<0.85?' <span class="pill red">low</span>':''}</div></div>
-        <div class="dfield"><div class="l">Contract term</div><div class="v">${d.progressive?'Event sponsorship · progressive':d.real?'Not extracted':'12 months'}</div></div>
+        <div class="dfield"><div class="l">Contract term</div><div class="v">${d.progressive?'Event sponsorship · progressive':(d.real?(d.termMonths?d.termMonths+' months':'Not extracted'):'12 months')}</div></div>
         <div class="dfield"><div class="l">Billing frequency</div><div class="v">${d.progressive?'Milestone-based · '+ (sched?sched.length:0) +' invoices':d.real?'Not extracted':'Annual upfront'}</div></div>
-        <div class="dfield"><div class="l">Signatory</div><div class="v">${d.progressive?'Contract counter-signer':d.real?'Not extracted':'Rachel Kim, CFO'}</div></div>
+        <div class="dfield"><div class="l">Auto-renew</div><div class="v">${d.progressive?'—':(d.real?(d.autoRenew===true?'Yes':d.autoRenew===false?'No':'Not extracted'):'—')}</div></div>
+        <div class="dfield"><div class="l">Signatory</div><div class="v">${d.progressive?'Contract counter-signer':(d.real?(contract&&contract.signatories&&contract.signatories.length?contract.signatories.join(' · '):'Not extracted'):'Rachel Kim, CFO')}</div></div>
       </div>
       <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;font-weight:600;margin:10px 0 6px">Parsed line items</div>
       <table class="t" style="font-size:11.5px">

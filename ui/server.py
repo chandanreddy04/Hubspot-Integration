@@ -78,6 +78,18 @@ def _build_line_items(raw: list | None) -> list[dict]:
     return items
 
 
+def _build_signatories(fields: dict) -> list[str]:
+    """One entry for the customer's signatory, formatted 'Name, Title' --
+    only when the extractor actually found a name. Provider-side (Rally)
+    signatory isn't extracted from the customer's contract, so it's never
+    invented here either."""
+    name = fields.get("signatory_name")
+    if not name:
+        return []
+    title = fields.get("signatory_title")
+    return [f"{name}, {title}" if title else name]
+
+
 def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int) -> dict:
     confs = [c for c in confidence.values() if c is not None]
     avg_conf = round(sum(confs) / len(confs), 2) if confs else 0.0
@@ -98,6 +110,8 @@ def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int
         "conf": avg_conf,
         "real": True,
         "lineItems": _build_line_items(fields.get("line_items")),
+        "termMonths": fields.get("term_months"),
+        "autoRenew": fields.get("auto_renew"),
         "contract": {
             "filename": agreement.filename,
             "signed_date": _fmt_signed_date(fields.get("effective_date")),
@@ -107,7 +121,7 @@ def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int
             "party_from_domain": "rally.example",
             "party_to": fields.get("customer_legal_name") or deal.company_legal_name,
             "party_to_domain": party_to_domain,
-            "signatories": [],  # not extracted -- no signatory-name field in the schema; not fabricated
+            "signatories": _build_signatories(fields),
             "mock_body": "",  # filled in below with real extracted text
         },
     }

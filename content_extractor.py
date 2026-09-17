@@ -45,6 +45,11 @@ _SCHEMA_HINT = {
         "if the contract only states a single total with no breakdown — do not "
         "invent a split."
     ),
+    "term_months": "number — contract term length in months, if stated (e.g. '24 months' -> 24), else null",
+    "auto_renew": "boolean or null — does the contract auto-renew at term end (null if not stated either way)",
+    "signatory_name": "string — full name of the CUSTOMER's (not Provider's) signatory, else null",
+    "signatory_title": "string — title of the customer's signatory, else null",
+    "signatory_date": "YYYY-MM-DD — date the customer signatory signed, if stated separately from effective_date, else null",
 }
 
 _PROMPT = (
@@ -200,6 +205,13 @@ def extract_heuristic(agreement_text: str) -> ExtractionResult:
     # this is an honest gap rather than an invented split.
     fields["line_items"] = []
     conf["line_items"] = 0.0
+
+    # Same story for term length, auto-renew, and signatory details -- no
+    # regex heuristic exists for these either, so they're an honest gap
+    # in mock mode too, not just in the live LLM path.
+    for key in ("term_months", "auto_renew", "signatory_name", "signatory_title", "signatory_date"):
+        fields[key] = None
+        conf[key] = 0.0
 
     return ExtractionResult(fields=fields, confidence=conf, method="heuristic")
 
