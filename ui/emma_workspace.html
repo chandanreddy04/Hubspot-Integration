@@ -4651,7 +4651,10 @@ async function loadRealDeals(refresh){
     const res = await fetch('/api/deals' + (refresh ? '?refresh=1' : ''));
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const payload = await res.json();
-    if(payload.error){
+    // A non-null error means the latest recompute failed (e.g. rate limit) --
+    // server.py still serves the last successful extraction alongside it, so
+    // only bail out here when there's truly nothing usable to show.
+    if(payload.error && !(payload.deals && payload.deals.length)){
       toast('warn', 'Live HubSpot deals unavailable: ' + payload.error);
       return;
     }
@@ -4659,7 +4662,8 @@ async function loadRealDeals(refresh){
     DEALS.unshift(...payload.deals);
     renderPipeline();
     if(payload.deals.length){
-      toast('success', payload.deals.length + ' real HubSpot deal(s) loaded');
+      const staleNote = payload.error ? ' (showing last successful extraction, refresh failed)' : '';
+      toast(payload.error ? 'warn' : 'success', payload.deals.length + ' real HubSpot deal(s) loaded' + staleNote);
     }
   }catch(e){
     toast('warn', 'Could not reach the live deals API — is server.py running? (' + e.message + ')');
@@ -4671,7 +4675,11 @@ async function loadRealCash(refresh){
     const res = await fetch('/api/cash' + (refresh ? '?refresh=1' : ''));
     if(!res.ok) throw new Error('HTTP ' + res.status);
     const payload = await res.json();
-    if(payload.error){
+    const total = (payload.matched||[]).length + (payload.unmatched||[]).length + (payload.partial||[]).length;
+    // Same as loadRealDeals: a non-null error means the latest recompute
+    // failed, but the server still serves the last successful cash pull
+    // alongside it -- only bail when there's genuinely nothing to show.
+    if(payload.error && !total){
       toast('warn', 'Live QuickBooks cash data unavailable: ' + payload.error);
       return;
     }
@@ -4683,9 +4691,9 @@ async function loadRealCash(refresh){
     CASH_PARTIAL.unshift(...(payload.partial || []));
     const activeTab = document.querySelector('#cash-tabs .subtab.active');
     renderCash(activeTab ? activeTab.dataset.cashtab : 'matched');
-    const total = (payload.matched||[]).length + (payload.unmatched||[]).length + (payload.partial||[]).length;
     if(total){
-      toast('success', total + ' real QuickBooks payment/invoice record(s) loaded');
+      const staleNote = payload.error ? ' (showing last successful pull, refresh failed)' : '';
+      toast(payload.error ? 'warn' : 'success', total + ' real QuickBooks payment/invoice record(s) loaded' + staleNote);
     }
   }catch(e){
     toast('warn', 'Could not reach the live cash API — is server.py running? (' + e.message + ')');
