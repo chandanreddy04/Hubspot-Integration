@@ -2242,6 +2242,13 @@ function renderCash(view){
       <td class="mono">${p.inv}</td><td class="num">${p.conf.toFixed(2)}</td><td style="color:var(--text-3)">${p.when}</td>
     </tr>`).join('')}</tbody></table>`;
   }
+  const tabs = document.getElementById('cash-tabs');
+  const matchedBtn = tabs.querySelector('[data-cashtab="matched"] .cnt');
+  const unmatchedBtn = tabs.querySelector('[data-cashtab="unmatched"] .cnt');
+  const partialBtn = tabs.querySelector('[data-cashtab="partial"] .cnt');
+  if(matchedBtn) matchedBtn.textContent = CASH_MATCHED.length;
+  if(unmatchedBtn) unmatchedBtn.textContent = CASH_UNMATCHED.length;
+  if(partialBtn) partialBtn.textContent = CASH_PARTIAL.length;
 }
 document.getElementById('cash-tabs').addEventListener('click', e=>{
   const b = e.target.closest('.subtab'); if(!b) return;
