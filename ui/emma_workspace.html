@@ -1135,7 +1135,7 @@ select.f,input.f{padding:6px 10px;border:1px solid var(--border);border-radius:6
       <button class="x" onclick="closeContractModal()" title="Close">×</button>
     </div>
     <div class="pmb" id="pdfModalBody"></div>
-    <div class="pmf">
+    <div class="pmf" id="pdfModalFoot">
       <span class="pg" id="pdfModalPages">Page 1 of 1</span>
       <div style="display:flex;gap:6px">
         <button class="btn sm" onclick="toast('success','Previous page')">Prev</button>
@@ -2208,6 +2208,7 @@ function saveDealEdits(id){
   const d = findDeal(id); if(!d) return;
   const before = {
     amt: d.amt, terms: d.terms, c: d.c, owner: d.owner,
+    termMonths: d.termMonths, autoRenew: d.autoRenew,
     party_from: d.contract && d.contract.party_from,
     party_to: d.contract && d.contract.party_to,
     signatories: d.contract && d.contract.signatories ? d.contract.signatories.slice() : null,
@@ -2219,6 +2220,10 @@ function saveDealEdits(id){
   d.terms = _readStr('edit-terms') || d.terms;
   d.c = _readStr('edit-customer') || d.c;
   d.owner = _readStr('edit-owner') || d.owner;
+  const termMonthsRaw = _readStr('edit-term-months');
+  d.termMonths = termMonthsRaw ? Number(termMonthsRaw) : null;
+  const autoRenewSel = document.getElementById('edit-auto-renew');
+  d.autoRenew = autoRenewSel ? (autoRenewSel.value === 'yes' ? true : autoRenewSel.value === 'no' ? false : null) : d.autoRenew;
   if(d.contract){
     d.contract.party_from = _readStr('edit-party-from') || d.contract.party_from;
     d.contract.party_to = _readStr('edit-party-to') || d.contract.party_to;
@@ -2240,6 +2245,8 @@ function saveDealEdits(id){
   if(before.terms !== d.terms) changed.push('payment terms');
   if(before.c !== d.c) changed.push('customer');
   if(before.owner !== d.owner) changed.push('deal owner');
+  if(before.termMonths !== d.termMonths) changed.push('contract term');
+  if(before.autoRenew !== d.autoRenew) changed.push('auto-renew');
   if(d.contract){
     if(before.party_from !== d.contract.party_from || before.party_to !== d.contract.party_to) changed.push('parties');
     if(!before.signatories || before.signatories.join('|') !== (d.contract.signatories||[]).join('|')) changed.push('signatories');
@@ -2678,7 +2685,9 @@ function contractSectionHTML(d, editMode){
             ${partiesBlock}
             <div class="contract-actions">
               <button class="btn primary sm" onclick="openContractModal('${dealId}')">View PDF</button>
-              <button class="btn sm" onclick="toast('success','Downloading contract...')">Download</button>
+              ${d.real
+                ? `<a class="btn sm" href="/api/deals/${dealId}/pdf" download="${c.filename}" style="text-decoration:none;display:inline-flex;align-items:center">Download</a>`
+                : `<button class="btn sm" onclick="toast('success','Downloading contract...')">Download</button>`}
               <button class="btn sm" onclick="toast('success','Contract re-parsed · schedule refreshed')">Re-parse</button>
             </div>
           </div>
@@ -2692,7 +2701,20 @@ function openContractModal(dealId){
   const c = d.contract;
   const bd = document.getElementById('pdfModalBd');
   const body = document.getElementById('pdfModalBody');
+  const foot = document.getElementById('pdfModalFoot');
   document.getElementById('pdfModalFn').textContent = c.filename;
+
+  if(d.real){
+    // Real deal: show the actual PDF via the server's re-fetch endpoint --
+    // the browser's native PDF viewer gives real page navigation and
+    // zoom for free, so the fake Prev/Next footer is hidden instead of
+    // faked alongside it.
+    foot.style.display = 'none';
+    body.innerHTML = `<iframe src="/api/deals/${dealId}/pdf" title="${c.filename}" style="width:100%;height:100%;border:0;background:#fff"></iframe>`;
+    bd.classList.add('open');
+    return;
+  }
+  foot.style.display = '';
   document.getElementById('pdfModalPages').textContent = 'Page 1 of ' + c.pages;
   const paragraphs = (c.mock_body || '').split(/(?<=\.)\s+(?=[A-Z])/).filter(Boolean);
   const midpoint = Math.max(1, Math.floor(paragraphs.length / 2));
@@ -2821,6 +2843,20 @@ function openDealDrawer(id, editMode){
          </select>
        </div>`
     : `<div class="dfield"><div class="l">Payment terms</div><div class="v">${d.terms}</div></div>`;
+  const contractTermField = editMode
+    ? `<div class="dfield editing"><div class="l">Contract term</div>
+         <div class="amt-input-wrap"><input class="di" id="edit-term-months" type="number" min="0" step="1" placeholder="months" value="${d.termMonths!=null?d.termMonths:''}"><span style="margin-left:6px;color:var(--text-3);font-size:11px;white-space:nowrap">months</span></div>
+       </div>`
+    : `<div class="dfield"><div class="l">Contract term</div><div class="v">${d.progressive?'Event sponsorship · progressive':(d.real?(d.termMonths?d.termMonths+' months':'Not extracted'):'12 months')}</div></div>`;
+  const autoRenewField = editMode
+    ? `<div class="dfield editing"><div class="l">Auto-renew</div>
+         <select class="di" id="edit-auto-renew">
+           <option value="unset"${d.autoRenew==null?' selected':''}>Not stated</option>
+           <option value="yes"${d.autoRenew===true?' selected':''}>Yes</option>
+           <option value="no"${d.autoRenew===false?' selected':''}>No</option>
+         </select>
+       </div>`
+    : `<div class="dfield"><div class="l">Auto-renew</div><div class="v">${d.progressive?'—':(d.real?(d.autoRenew===true?'Yes':d.autoRenew===false?'No':'Not extracted'):'—')}</div></div>`;
 
   const body = `
     ${headerBar}
@@ -2846,11 +2882,12 @@ function openDealDrawer(id, editMode){
     <div class="dsec"><h4>Extracted PDF terms</h4>
       <div class="dg">
         <div class="dfield"><div class="l">Confidence</div><div class="v">${d.conf?d.conf.toFixed(2):'—'}${d.conf&&d.conf<0.85?' <span class="pill red">low</span>':''}</div></div>
-        <div class="dfield"><div class="l">Contract term</div><div class="v">${d.progressive?'Event sponsorship · progressive':(d.real?(d.termMonths?d.termMonths+' months':'Not extracted'):'12 months')}</div></div>
+        ${contractTermField}
         <div class="dfield"><div class="l">Billing frequency</div><div class="v">${d.progressive?'Milestone-based · '+ (sched?sched.length:0) +' invoices':d.real?'Not extracted':'Annual upfront'}</div></div>
-        <div class="dfield"><div class="l">Auto-renew</div><div class="v">${d.progressive?'—':(d.real?(d.autoRenew===true?'Yes':d.autoRenew===false?'No':'Not extracted'):'—')}</div></div>
+        ${autoRenewField}
         <div class="dfield"><div class="l">Signatory</div><div class="v">${d.progressive?'Contract counter-signer':(d.real?(contract&&contract.signatories&&contract.signatories.length?contract.signatories.join(' · '):'Not extracted'):'Rachel Kim, CFO')}</div></div>
       </div>
+      ${editMode ? '<div style="font-size:11px;color:var(--text-3);margin-top:6px">Signatory is edited in the Contract section above.</div>' : ''}
       <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;font-weight:600;margin:10px 0 6px">Parsed line items</div>
       <table class="t" style="font-size:11.5px">
         <thead><tr><th>Line item</th><th class="num" style="width:70px">Qty</th><th class="num" style="width:110px">Unit price</th><th class="num" style="width:110px">Amount</th></tr></thead>

@@ -79,15 +79,21 @@ def _build_line_items(raw: list | None) -> list[dict]:
 
 
 def _build_signatories(fields: dict) -> list[str]:
-    """One entry for the customer's signatory, formatted 'Name, Title' --
-    only when the extractor actually found a name. Provider-side (Rally)
-    signatory isn't extracted from the customer's contract, so it's never
-    invented here either."""
+    """One entry for the customer's signatory -- only when the extractor
+    actually found a name. Provider-side (Rally) signatory isn't extracted
+    from the customer's contract, so it's never invented here either.
+
+    Joined with an em dash, not a comma: the UI's edit-mode signatories
+    field treats a comma as the separator between multiple different
+    signatories (join(', ') / split(',') round-trip) -- a literal comma
+    inside one signatory's own "Name, Title" string would get silently
+    split into two fake signatories on the next save.
+    """
     name = fields.get("signatory_name")
     if not name:
         return []
     title = fields.get("signatory_title")
-    return [f"{name}, {title}" if title else name]
+    return [f"{name} — {title}" if title else name]
 
 
 def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int) -> dict:
@@ -112,6 +118,7 @@ def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int
         "lineItems": _build_line_items(fields.get("line_items")),
         "termMonths": fields.get("term_months"),
         "autoRenew": fields.get("auto_renew"),
+        "agreementRef": deal.agreement_ref,  # lets the UI re-fetch the real PDF bytes on demand
         "contract": {
             "filename": agreement.filename,
             "signed_date": _fmt_signed_date(fields.get("effective_date")),
@@ -272,6 +279,41 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _serve_deal_pdf(self, deal_id: str) -> None:
+        """Re-fetches the real signed PDF from HubSpot so the UI can show
+        the actual document (real pages, real download) instead of a
+        flattened text preview. Not cached -- this endpoint is only hit
+        when a user actually opens/downloads a contract, not on every
+        page load."""
+        deals, _ = get_deals()
+        deal = next((d for d in deals if d["id"] == deal_id), None)
+        if not deal or not deal.get("agreementRef"):
+            self.send_response(404)
+            self.end_headers()
+            return
+
+        from integrations.hubspot import HubSpotClient
+
+        settings = load_settings()
+        client = HubSpotClient(settings.hubspot_token)
+        try:
+            agreement = client.get_agreement(deal["agreementRef"])
+        except Exception as exc:
+            self.send_response(502)
+            self.send_header("Content-Type", "text/plain")
+            body = str(exc).encode("utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/pdf")
+        self.send_header("Content-Disposition", f'inline; filename="{agreement.filename}"')
+        self.send_header("Content-Length", str(len(agreement.content)))
+        self.end_headers()
+        self.wfile.write(agreement.content)
+
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path
@@ -286,6 +328,11 @@ class Handler(BaseHTTPRequestHandler):
             force = parse_qs(parsed.query).get("refresh", ["0"])[0] == "1"
             cash, error = get_cash(force_refresh=force)
             self._send_json({**cash, "error": error, "computed_at": _cash_cache["computed_at"]})
+            return
+
+        if path.startswith("/api/deals/") and path.endswith("/pdf"):
+            deal_id = path[len("/api/deals/"):-len("/pdf")]
+            self._serve_deal_pdf(deal_id)
             return
 
         if path == "/":
