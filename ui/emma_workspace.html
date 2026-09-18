@@ -2704,16 +2704,23 @@ function openContractModal(dealId){
   const foot = document.getElementById('pdfModalFoot');
   document.getElementById('pdfModalFn').textContent = c.filename;
 
+  const modal = bd.querySelector('.pdf-modal');
   if(d.real){
     // Real deal: show the actual PDF via the server's re-fetch endpoint --
     // the browser's native PDF viewer gives real page navigation and
     // zoom for free, so the fake Prev/Next footer is hidden instead of
     // faked alongside it.
+    // .pdf-modal only has a max-height cap, not a definite height, so an
+    // <iframe> (which has its own small intrinsic height, unlike text
+    // content) never gets a real height to fill via flex:1 -- give the
+    // modal an explicit height here so the iframe actually expands.
+    if(modal) modal.style.height = 'calc(100vh - 80px)';
     foot.style.display = 'none';
     body.innerHTML = `<iframe src="/api/deals/${dealId}/pdf" title="${c.filename}" style="width:100%;height:100%;border:0;background:#fff"></iframe>`;
     bd.classList.add('open');
     return;
   }
+  if(modal) modal.style.height = '';
   foot.style.display = '';
   document.getElementById('pdfModalPages').textContent = 'Page 1 of ' + c.pages;
   const paragraphs = (c.mock_body || '').split(/(?<=\.)\s+(?=[A-Z])/).filter(Boolean);
