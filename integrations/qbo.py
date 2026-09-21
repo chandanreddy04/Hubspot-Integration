@@ -20,7 +20,7 @@ import time
 import urllib.parse
 from dataclasses import dataclass, field
 
-from config import Settings
+from config import Settings, update_dotenv_value
 from integrations import _http
 
 log = logging.getLogger("qbo")
@@ -70,7 +70,14 @@ class QboClient:
         new_refresh = res.get("refresh_token")
         if new_refresh and new_refresh != self._refresh:
             self._refresh = new_refresh
-            log.warning("QBO refresh token rotated — update QBO_REFRESH_TOKEN in .env to: %s", new_refresh)
+            # Never log the raw token -- persist it straight to .env instead,
+            # so a stale in-memory-only rotation can't silently break the
+            # next fresh process start (this is what caused a real
+            # "invalid_grant" failure).
+            if update_dotenv_value("QBO_REFRESH_TOKEN", new_refresh):
+                log.warning("QBO refresh token rotated — new value saved to .env automatically")
+            else:
+                log.warning("QBO refresh token rotated but no .env file found to update — set QBO_REFRESH_TOKEN manually")
 
     def _h(self) -> dict:
         self._ensure_token()

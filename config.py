@@ -27,6 +27,32 @@ def _env(name: str, default: str | None = None) -> str | None:
     return val if val not in (None, "") else default
 
 
+def update_dotenv_value(key: str, value: str, path: Path = ROOT / ".env") -> bool:
+    """Rewrites a single KEY=value line in .env in place, preserving every
+    other line exactly (comments, blank lines, ordering). Appends a new
+    line if the key isn't present yet. Returns False (no-op) if there's
+    no .env file to update -- e.g. a deployment using real env vars.
+
+    Used to persist a rotated OAuth refresh token (QuickBooks issues a
+    new one on every use and invalidates the old one) so the next process
+    start doesn't fail with a stale value that only ever lived in memory.
+    """
+    if not path.exists():
+        return False
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        if stripped.partition("=")[0].strip() == key:
+            lines[i] = f"{key}={value}"
+            break
+    else:
+        lines.append(f"{key}={value}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return True
+
+
 @dataclass
 class Settings:
     hubspot_token: str | None = None
