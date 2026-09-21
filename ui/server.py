@@ -312,7 +312,14 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Disposition", f'inline; filename="{agreement.filename}"')
         self.send_header("Content-Length", str(len(agreement.content)))
         self.end_headers()
-        self.wfile.write(agreement.content)
+        try:
+            self.wfile.write(agreement.content)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            # Harmless: the browser cancelled the request mid-stream (modal
+            # closed, a different deal's PDF opened, tab navigated away).
+            # Nothing to clean up -- just don't let it print a scary
+            # traceback for what is normal client behavior.
+            pass
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
