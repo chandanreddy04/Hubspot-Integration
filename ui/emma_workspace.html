@@ -917,7 +917,7 @@ select.f,input.f{padding:6px 10px;border:1px solid var(--border);border-radius:6
           <div class="right"><button class="csv-btn" onclick="exportReconReport()">Export reconciliation report</button></div>
         </div>
         <div class="recon-tiles" id="reconTiles"></div>
-        <div style="padding:0 18px 6px;font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Variance breakdown · 3 unmatched items · $7,200 total</div>
+        <div id="reconVarianceHdr" style="padding:0 18px 6px;font-size:12px;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Variance breakdown · 3 unmatched items · $7,200 total</div>
         <div class="body padless">
           <table class="t">
             <thead><tr><th>Reference</th><th>Customer</th><th class="num">Amount</th><th>Reason</th><th>Note</th><th style="text-align:right">Actions</th></tr></thead>
@@ -2162,6 +2162,7 @@ async function sendRealInvoiceEmail(invId){
       });
     }
     renderInvoicePipeline();
+    if(typeof renderReconTiles === 'function') renderReconTiles();
     closeDrawer();
     toast('success', inv.id + ' emailed to ' + payload.to);
   }catch(e){
@@ -4063,42 +4064,99 @@ const RECON_TREND = [
   {d:'Sep 15',s:'amber',v:1600},{d:'Sep 16',s:'amber',v:7200}
 ];
 
+// Real 3-way tie-out from data already loaded client-side (real invoices +
+// real QBO cash) -- no new endpoint needed, this only aggregates what
+// loadRealCash()/sendRealInvoiceEmail() already populated. Returns null
+// when nothing real has loaded yet, so the caller can fall back to the
+// demo numbers instead of showing an all-zero tile that looks broken.
+//
+// Honest note on "Cash applied to GL": this system has no separate
+// general-ledger integration, so QBO itself stands in for the GL --
+// "applied" here means QBO's own LinkedTxn ties a payment to one of our
+// real invoices (matched) or a real invoice shows partial payment, not a
+// synced-to-a-different-system fact the way the design doc's 3-way
+// tie-out technically describes.
+function _computeReconData(){
+  const sentOrPaid = ['sent','paid'];
+  const realInvoices = INVOICE_PIPELINE.rally.filter(i=>i.real && sentOrPaid.includes(i.stage));
+  const realMatched = CASH_MATCHED.filter(c=>c.real);
+  const realUnmatched = CASH_UNMATCHED.filter(c=>c.real);
+  const realPartial = CASH_PARTIAL.filter(c=>c.real);
+  if(!realInvoices.length && !realMatched.length && !realUnmatched.length && !realPartial.length) return null;
+
+  const invAmt = realInvoices.reduce((s,i)=>s+(Number(i.amount)||0),0);
+  const matchedAmt = realMatched.reduce((s,c)=>s+(Number(c.amt)||0),0);
+  const unmatchedAmt = realUnmatched.reduce((s,c)=>s+(Number(c.amt)||0),0);
+  const partialAmt = realPartial.reduce((s,c)=>s+(Number(c.amt)||0),0);
+  const payAmt = matchedAmt + unmatchedAmt + partialAmt;
+  const payCnt = realMatched.length + realUnmatched.length + realPartial.length;
+  const glAmt = matchedAmt + partialAmt;
+  const glCnt = realMatched.length + realPartial.length;
+
+  const varianceRows = [
+    ...realUnmatched.map(c=>({ref:c.qb, c:c.c, amt:c.amt, reason:'Unmatched payment', reasonTone:'red',
+      note:'No linked invoice in QuickBooks — no automatic matching built yet', real:true})),
+    ...realPartial.map(c=>({ref:c.inv, c:c.c, amt:Math.max(0,(c.due||0)-(c.amt||0)), reason:'Partial payment', reasonTone:'amber',
+      note:'Applied '+money(c.amt)+' of '+money(c.due)+' due', real:true})),
+  ];
+
+  return {invAmt, invCnt:realInvoices.length, payAmt, payCnt, glAmt, glCnt, varianceRows};
+}
+
 function renderReconTiles(){
   const wrap = document.getElementById('reconTiles');
   if(!wrap) return;
-  const invAmt=158400, invCnt=12, payAmt=151200, payCnt=9, glAmt=151200, glCnt=9;
+  const real = _computeReconData();
+  const invAmt = real ? real.invAmt : 158400, invCnt = real ? real.invCnt : 12;
+  const payAmt = real ? real.payAmt : 151200, payCnt = real ? real.payCnt : 9;
+  const glAmt  = real ? real.glAmt  : 151200, glCnt  = real ? real.glCnt  : 9;
   const variance = invAmt - payAmt;
+  const liveTag = real ? ' <span class="pill green dot" style="font-size:9.5px;margin-left:4px">Live</span>' : '';
+  const invMeta = real
+    ? (invCnt ? invCnt+' invoice'+(invCnt===1?'':'s')+' sent this session' : 'No real invoices sent yet this session')
+    : invCnt+' invoices · reconciled';
+  const payMeta = real
+    ? payCnt+' real QuickBooks payment'+(payCnt===1?'':'s')+(variance!==0?' · vs. invoices sent '+money(variance):'')
+    : payCnt+' payments · mismatch '+money(variance);
   wrap.innerHTML = `
     <div class="recon-tile" style="--tone:#0d6b2c;--tone-bg:var(--green-bg)">
-      <div class="rt-hd"><span class="rt-ico">✓</span><span class="rt-lbl">Invoices sent</span></div>
+      <div class="rt-hd"><span class="rt-ico">✓</span><span class="rt-lbl">Invoices sent${liveTag}</span></div>
       <div class="rt-v">${money(invAmt)}</div>
-      <div class="rt-meta">${invCnt} invoices · reconciled</div>
+      <div class="rt-meta">${invMeta}</div>
     </div>
     <div class="recon-tile" style="--tone:#8a5a10;--tone-bg:var(--amber-bg)">
-      <div class="rt-hd"><span class="rt-ico">!</span><span class="rt-lbl">Payments received</span></div>
+      <div class="rt-hd"><span class="rt-ico">!</span><span class="rt-lbl">Payments received${liveTag}</span></div>
       <div class="rt-v">${money(payAmt)}</div>
-      <div class="rt-meta">${payCnt} payments · mismatch ${money(variance)}</div>
+      <div class="rt-meta">${payMeta}</div>
     </div>
     <div class="recon-tile" style="--tone:#8a5a10;--tone-bg:var(--amber-bg)">
-      <div class="rt-hd"><span class="rt-ico">!</span><span class="rt-lbl">Cash applied to GL</span></div>
+      <div class="rt-hd"><span class="rt-ico">!</span><span class="rt-lbl">Cash applied${real?' (QuickBooks)':' to GL'}${liveTag}</span></div>
       <div class="rt-v">${money(glAmt)}</div>
-      <div class="rt-meta">${glCnt} applications · matches payments received</div>
+      <div class="rt-meta">${glCnt} application${glCnt===1?'':'s'}${real?' · matched or partial in QuickBooks':' · matches payments received'}</div>
     </div>
   `;
+  const varianceRows = real ? real.varianceRows : RECON_UNMATCHED;
+  const varianceHdr = document.getElementById('reconVarianceHdr');
+  if(varianceHdr){
+    const total = varianceRows.reduce((s,r)=>s+(Number(r.amt)||0),0);
+    varianceHdr.textContent = 'Variance breakdown · ' + varianceRows.length + ' ' + (real?'real ':'') + 'unmatched item' + (varianceRows.length===1?'':'s') + ' · ' + money(total) + ' total';
+  }
   const tb = document.getElementById('reconUnmatchedBody');
   if(tb){
-    tb.innerHTML = RECON_UNMATCHED.map(r=>`<tr>
-      <td class="mono">${esc(r.ref)}</td>
+    tb.innerHTML = varianceRows.length ? varianceRows.map(r=>`<tr>
+      <td class="mono">${esc(r.ref)}${r.real?' <span class="pill green dot" style="font-size:9px">Live</span>':''}</td>
       <td>${esc(r.c)}</td>
       <td class="amt-cell amber">${money(r.amt)}</td>
       <td><span class="pill ${r.reasonTone} dot">${esc(r.reason)}</span></td>
       <td style="color:var(--text-2);font-size:12px">${esc(r.note)}</td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="btn sm" onclick="event.stopPropagation();toast('warn','Investigation opened for '+'${esc(r.ref)}')">Investigate</button>
-        <button class="btn sm" onclick="event.stopPropagation();toast('success','Force-matched '+'${esc(r.ref)}')">Force-match</button>
-        <button class="btn sm" onclick="event.stopPropagation();toast('warn','Escalated to finance lead · '+'${esc(r.ref)}')">Escalate</button>
+        ${r.real
+          ? '<span style="color:var(--text-3);font-size:11.5px">No real actions built for this yet</span>'
+          : `<button class="btn sm" onclick="event.stopPropagation();toast('warn','Investigation opened for '+'${esc(r.ref)}')">Investigate</button>
+             <button class="btn sm" onclick="event.stopPropagation();toast('success','Force-matched '+'${esc(r.ref)}')">Force-match</button>
+             <button class="btn sm" onclick="event.stopPropagation();toast('warn','Escalated to finance lead · '+'${esc(r.ref)}')">Escalate</button>`}
       </td>
-    </tr>`).join('');
+    </tr>`).join('') : `<tr><td colspan="6" class="empty">No variance items</td></tr>`;
   }
   const trend = document.getElementById('reconTrend');
   if(trend){
@@ -4931,6 +4989,7 @@ async function loadRealCash(refresh){
     CASH_PARTIAL.unshift(...(payload.partial || []));
     const activeTab = document.querySelector('#cash-tabs .subtab.active');
     renderCash(activeTab ? activeTab.dataset.cashtab : 'matched');
+    if(typeof renderReconTiles === 'function') renderReconTiles();
     if(total){
       const staleNote = payload.error ? ' (showing last successful pull, refresh failed)' : '';
       toast(payload.error ? 'warn' : 'success', total + ' real QuickBooks payment/invoice record(s) loaded' + staleNote);
