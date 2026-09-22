@@ -171,7 +171,7 @@ def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int
     }
 
 
-def compute_deals() -> list[dict]:
+def compute_deals() -> tuple[list[dict], list[tuple[str, str]]]:
     from integrations.hubspot import HubSpotClient, NoAgreementFound
     import pdfplumber
     import io
@@ -182,6 +182,7 @@ def compute_deals() -> list[dict]:
 
     client = HubSpotClient(settings.hubspot_token)
     out = []
+    skipped: list[tuple[str, str]] = []
     for deal in client.list_closed_deals(limit=10):
         if not deal.agreement_ref:
             continue
@@ -193,7 +194,15 @@ def compute_deals() -> list[dict]:
         parsed = extract_text(agreement.content)
         if parsed.needs_ocr:
             continue
-        result = extract(parsed.text, settings)
+        try:
+            result = extract(parsed.text, settings)
+        except Exception as exc:
+            # One deal hitting a rate limit (or any other extraction
+            # failure) shouldn't discard every other deal that already
+            # succeeded -- skip it and keep going. get_deals() surfaces
+            # this in the error field so it's never silently swallowed.
+            skipped.append((deal.deal_name, str(exc)))
+            continue
 
         try:
             with pdfplumber.open(io.BytesIO(agreement.content)) as pdf:
@@ -205,15 +214,21 @@ def compute_deals() -> list[dict]:
         built["contract"]["mock_body"] = parsed.text[:4000]
         out.append(built)
 
-    return out
+    return out, skipped
 
 
 def get_deals(force_refresh: bool = False) -> tuple[list[dict], str | None]:
     stale = time.time() - _cache["computed_at"] > _CACHE_TTL_SECONDS
     if force_refresh or _cache["deals"] is None or stale:
         try:
-            _cache["deals"] = compute_deals()
-            _cache["error"] = None
+            deals, skipped = compute_deals()
+            _cache["deals"] = deals
+            # A per-deal failure (e.g. one deal hit a rate limit) doesn't
+            # invalidate the ones that succeeded -- surface it as an
+            # honest, non-fatal note instead of discarding everything.
+            _cache["error"] = (
+                "; ".join(f"{name}: {err}" for name, err in skipped) if skipped else None
+            )
         except Exception as exc:
             _cache["error"] = str(exc)
             if _cache["deals"] is None:
