@@ -121,7 +121,19 @@ def _build_signatories(fields: dict) -> list[str]:
 
 
 def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int) -> dict:
-    confs = [c for c in confidence.values() if c is not None]
+    # A field the extractor honestly left null/empty (e.g. no itemized line
+    # items, no separately-stated signatory date) isn't a low-confidence
+    # guess -- it's a correct "not in this document" answer, and the model
+    # is inconsistent about what confidence number to attach to that empty
+    # answer (0.0 one run, ~1.0 the next, for the exact same absent field).
+    # Averaging that noise in with real extracted values caused deals with
+    # perfect core-field confidence to intermittently flip into "Failed
+    # extraction" just because e.g. auto-renew wasn't stated. Only fields
+    # that actually found a value count toward the review-gating score.
+    confs = [
+        c for k, c in confidence.items()
+        if c is not None and fields.get(k) not in (None, "", [])
+    ]
     avg_conf = round(sum(confs) / len(confs), 2) if confs else 0.0
     total = fields.get("stated_total") or deal.amount or 0
     billing_email = deal.billing_email or fields.get("billing_email") or ""
