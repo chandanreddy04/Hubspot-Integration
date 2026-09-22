@@ -947,9 +947,9 @@ select.f,input.f{padding:6px 10px;border:1px solid var(--border);border-radius:6
     <!-- ============= COLLECTIONS QUEUE ============= -->
     <section class="screen" id="scr-collections">
       <div class="kpis" style="grid-template-columns:repeat(3,1fr)">
-        <div class="kpi"><div class="l">Total overdue</div><div class="v">$284K</div><div class="meta">12 invoices past due</div></div>
-        <div class="kpi"><div class="l">Avg DPD</div><div class="v">28<span style="font-size:14px;color:var(--text-2);font-weight:500"> days</span></div><div class="meta">2 over 45 days</div></div>
-        <div class="kpi"><div class="l">Disputes paused</div><div class="v">1</div><div class="meta">Meridian Industries · $28K</div></div>
+        <div class="kpi"><div class="l">Total overdue</div><div class="v" id="collKpiTotal">—</div><div class="meta" id="collKpiTotalMeta">—</div></div>
+        <div class="kpi"><div class="l">Avg DPD</div><div class="v"><span id="collKpiAvgDpd">—</span><span style="font-size:14px;color:var(--text-2);font-weight:500"> days</span></div><div class="meta" id="collKpiAvgDpdMeta">—</div></div>
+        <div class="kpi"><div class="l">Disputes paused</div><div class="v" id="collKpiPaused">—</div><div class="meta" id="collKpiPausedMeta">—</div></div>
       </div>
       <div class="section">
         <div class="sh"><h3>Collections queue · dunning stages</h3></div>
@@ -2347,9 +2347,37 @@ document.getElementById('cash-tabs').addEventListener('click', e=>{
 /* =====================================================================
    RENDER: Collections kanban
    ===================================================================== */
+function _moneyAbbrev(n){
+  if(n >= 1000) return '$' + (n/1000).toFixed(n>=10000?0:1) + 'K';
+  return money(n);
+}
+
+function _updateCollectionsKpis(source){
+  const totalEl = document.getElementById('collKpiTotal');
+  const totalMetaEl = document.getElementById('collKpiTotalMeta');
+  const avgEl = document.getElementById('collKpiAvgDpd');
+  const avgMetaEl = document.getElementById('collKpiAvgDpdMeta');
+  const pausedEl = document.getElementById('collKpiPaused');
+  const pausedMetaEl = document.getElementById('collKpiPausedMeta');
+  if(!totalEl) return; // only present on the Collections screen
+
+  const total = source.reduce((s,c)=>s+(Number(c.amt)||0), 0);
+  const avgDpd = source.length ? Math.round(source.reduce((s,c)=>s+(Number(c.dpd)||0), 0) / source.length) : 0;
+  const over45 = source.filter(c=>c.dpd>45).length;
+  const paused = source.filter(c=>c.paused);
+
+  totalEl.textContent = _moneyAbbrev(total);
+  totalMetaEl.textContent = source.length + ' invoice' + (source.length===1?'':'s') + ' past due';
+  avgEl.textContent = avgDpd;
+  avgMetaEl.textContent = over45 + ' over 45 days';
+  pausedEl.textContent = paused.length;
+  pausedMetaEl.textContent = paused.length ? (paused[0].c + ' · ' + _moneyAbbrev(paused[0].amt)) : 'None';
+}
+
 function renderCollections(){
   const wrap = document.getElementById('kanban-collections');
   const source = getCollections();
+  _updateCollectionsKpis(source);
   wrap.innerHTML = DUNNING_STAGES.map(st=>{
     const cards = source.filter(c=>c.stage===st);
     return `<div class="kcol"><div class="kh"><span>${st}</span><span class="cnt">${cards.length}</span></div>
