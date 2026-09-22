@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Serves emma_workspace.html plus a real /api/deals endpoint backed by the
-actual HubSpot + LLM pipeline (same modules run_pipeline.py uses).
+"""Serves emma_workspace.html plus real API endpoints backed by the actual
+HubSpot + LLM pipeline, QuickBooks, and Gmail.
 
-Only the Deal Pipeline / contract data is real here, by design — Approvals,
-Cash Application, Collections, Incidents, and Audit stay as the existing
-mock data in emma_workspace.html; those workflows don't exist yet.
+Real: Deal Pipeline (contract extraction), Cash Application (QBO payment
+matching), Collections (overdue detection + dunning email), and real
+invoice delivery (PDF + email). Approvals, Incidents, and Audit are still
+the existing mock data in emma_workspace.html; those workflows don't
+exist yet.
 
-Real deals are computed once and cached in memory (LLM calls aren't free
-and this project has already hit real rate limits calling too often) --
-hit /api/deals?refresh=1 to force a recompute.
+Real deals/cash/collections are computed once and cached in memory (API
+calls aren't free and this project has already hit real rate limits
+calling too often) -- hit /api/deals?refresh=1 (etc.) to force a recompute.
 
 Usage:
     python server.py [port]        # default port 8600
@@ -141,6 +143,7 @@ def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int
         "termMonths": fields.get("term_months"),
         "autoRenew": fields.get("auto_renew"),
         "agreementRef": deal.agreement_ref,  # lets the UI re-fetch the real PDF bytes on demand
+        "billingEmail": billing_email or None,  # real send-to for invoice delivery; None is an honest gap, not fabricated
         "contract": {
             "filename": agreement.filename,
             "signed_date": _fmt_signed_date(fields.get("effective_date")),
@@ -539,19 +542,103 @@ class Handler(BaseHTTPRequestHandler):
         row["sentTo"] = to
         self._send_json({"ok": True, "messageId": message_id, "to": to})
 
+    def _send_invoice_email(self, payload: dict) -> None:
+        """Actually emails a real invoice PDF to the customer. Only ever
+        reached by a real POST from the UI's own Send button.
+
+        Invoices only ever exist in the browser's own JS state (built
+        client-side from an approved deal, never persisted server-side the
+        way deals/cash/collections are) -- so unlike those, this endpoint
+        can't look anything up by id. The client sends the full invoice
+        data it already has, and this only lays it out into a real PDF and
+        sends it; it never invents a customer, address, or amount that
+        wasn't already in that payload."""
+        to = (payload.get("to") or "").strip()
+        if not to:
+            self._send_json({"ok": False, "error": "No recipient email address — cannot send"})
+            return
+
+        inv = payload.get("invoice") or {}
+        required = ("number", "issueDate", "dueDate", "amount")
+        missing = [k for k in required if not inv.get(k) and inv.get(k) != 0]
+        if missing:
+            self._send_json({"ok": False, "error": f"Missing invoice field(s): {', '.join(missing)}"})
+            return
+
+        settings = load_settings()
+        if settings.gmail_mode != "live":
+            self._send_json({"ok": False, "error": "GMAIL_MODE is not 'live' -- set it in .env to send real email"})
+            return
+
+        from integrations.gmail import GmailClient
+        from invoice_pdf import InvoiceData, InvoiceLineItem, InvoiceParty, render_invoice_pdf
+
+        seller = inv.get("seller") or {}
+        bill_to = inv.get("billTo") or {}
+        line_items = [
+            InvoiceLineItem(
+                desc=li.get("desc", "—"),
+                qty=li.get("qty", 1),
+                unit=li.get("unit", 0),
+                amount=li.get("amount", 0),
+            )
+            for li in (inv.get("lineItems") or [])
+        ]
+
+        try:
+            pdf_bytes = render_invoice_pdf(InvoiceData(
+                number=inv["number"],
+                issue_date=inv["issueDate"],
+                due_date=inv["dueDate"],
+                seller=InvoiceParty(name=seller.get("name", "—"), address=seller.get("address") or [], email=seller.get("email", "")),
+                bill_to=InvoiceParty(name=bill_to.get("name", "—"), address=bill_to.get("address") or [], email=bill_to.get("email", "")),
+                amount=float(inv["amount"]),
+                currency=inv.get("currency", "USD"),
+                line_items=line_items,
+            ))
+        except Exception as exc:
+            self._send_json({"ok": False, "error": f"Could not build invoice PDF: {exc}"})
+            return
+
+        subject = payload.get("subject") or f"Invoice {inv['number']} from {seller.get('name', 'Rally, Inc.')}"
+        body_text = payload.get("body") or (
+            f"Hi {bill_to.get('name', '')},\n\nPlease find attached invoice {inv['number']} "
+            f"for ${float(inv['amount']):,.2f}, due {inv['dueDate']}.\n\nThank you,\n{seller.get('name', 'Rally, Inc.')}"
+        )
+
+        client = GmailClient(settings)
+        try:
+            message_id = client.send_email(
+                to, subject, body_text,
+                attachment_filename=f"{inv['number']}.pdf",
+                attachment_bytes=pdf_bytes,
+                attachment_mime="application/pdf",
+            )
+        except Exception as exc:
+            self._send_json({"ok": False, "error": f"{exc} (attempted To: {to!r})"})
+            return
+
+        self._send_json({"ok": True, "messageId": message_id, "to": to})
+
+    def _read_json_body(self) -> dict:
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        raw = self.rfile.read(length) if length else b""
+        try:
+            return json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            return {}
+
     def do_POST(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
         path = parsed.path
 
         if path.startswith("/api/collections/") and path.endswith("/send"):
             coll_id = path[len("/api/collections/"):-len("/send")]
-            length = int(self.headers.get("Content-Length", 0) or 0)
-            raw = self.rfile.read(length) if length else b""
-            try:
-                overrides = json.loads(raw) if raw else {}
-            except json.JSONDecodeError:
-                overrides = {}
-            self._send_collection_email(coll_id, overrides)
+            self._send_collection_email(coll_id, self._read_json_body())
+            return
+
+        if path == "/api/invoices/send":
+            self._send_invoice_email(self._read_json_body())
             return
 
         self.send_response(404)

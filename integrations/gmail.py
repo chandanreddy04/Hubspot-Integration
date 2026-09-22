@@ -66,17 +66,32 @@ class GmailClient:
         return {"Authorization": f"Bearer {self._access}", "Content-Type": "application/json"}
 
     # -- send ---------------------------------------------------------- #
-    def send_email(self, to: str, subject: str, body_text: str) -> str:
-        """Sends a plain-text email from the configured sender. Returns the
-        Gmail message id on success. Never called automatically by this
-        codebase -- only in direct response to a specific user action, and
-        raises on failure rather than swallowing it, so a caller can't
-        report success that didn't happen."""
+    def send_email(
+        self,
+        to: str,
+        subject: str,
+        body_text: str,
+        attachment_filename: str | None = None,
+        attachment_bytes: bytes | None = None,
+        attachment_mime: str = "application/pdf",
+    ) -> str:
+        """Sends a plain-text email from the configured sender, optionally
+        with one file attached (e.g. a real invoice PDF). Returns the Gmail
+        message id on success. Never called automatically by this codebase
+        -- only in direct response to a specific user action, and raises on
+        failure rather than swallowing it, so a caller can't report success
+        that didn't happen."""
         msg = EmailMessage()
         msg["To"] = to
         msg["From"] = self.s.gmail_sender_email
         msg["Subject"] = subject
         msg.set_content(body_text)
+        if attachment_filename and attachment_bytes is not None:
+            maintype, _, subtype = attachment_mime.partition("/")
+            msg.add_attachment(
+                attachment_bytes, maintype=maintype or "application", subtype=subtype or "octet-stream",
+                filename=attachment_filename,
+            )
         raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("ascii")
 
         try:

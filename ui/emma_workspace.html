@@ -2085,6 +2085,7 @@ function createOrUpdateInvoiceFromDeal(d){
     inv.ctag = ctag;
     inv.customer = d.c;
     inv.lineItems = items;
+    inv.billingEmail = d.billingEmail || null;
     inv.approvedAt = (typeof nowStamp === 'function' ? nowStamp(0) : new Date().toISOString());
   } else {
     inv = {
@@ -2101,25 +2102,72 @@ function createOrUpdateInvoiceFromDeal(d){
       real: true,
       approvedAt: (typeof nowStamp === 'function' ? nowStamp(0) : new Date().toISOString()),
       lineItems: items,
+      billingEmail: d.billingEmail || null,
     };
     pool.unshift(inv);
   }
   return inv;
 }
 
-function sendRealInvoice(invId){
-  const inv = INVOICE_PIPELINE.rally.find(x=>x.id===invId); if(!inv) return;
-  inv.stage = 'sent';
-  if(typeof AUDIT !== 'undefined' && Array.isArray(AUDIT)){
-    AUDIT.unshift({
-      ts: (typeof nowStamp === 'function' ? nowStamp(0) : '2026-09-15'),
-      ev: 'invoice_sent', ent: 'invoice', actor: 'Alex Rivera',
-      target: inv.id, rationale: 'Sent to ' + (inv.ctag||'').split(' · ')[0]
-    });
+// Actually emails a real invoice PDF to the customer via /api/invoices/send
+// -- builds the real PDF server-side from real deal/line-item data and
+// sends it as an attachment. Reads whatever the user edited in the
+// To/Subject/Body fields, same pattern as sendRealDunningEmail.
+async function sendRealInvoiceEmail(invId){
+  const inv = findPipelineInvoice(invId); if(!inv) return;
+  const to = (document.getElementById('realInvTo').value||'').trim();
+  const subject = document.getElementById('realInvSubject').value;
+  const body = document.getElementById('realInvBody').value;
+  if(!to){ toast('warn','No recipient email address — cannot send'); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){
+    toast('warn', '"' + to + '" doesn\'t look like a valid email address — check the To field');
+    return;
   }
-  renderInvoicePipeline();
-  closeDrawer();
-  toast('success', inv.id + ' marked sent');
+  const seller = sellerFor(inv.linkedDealId);
+  const custName = customerFor(inv);
+  const items = (Array.isArray(inv.lineItems) && inv.lineItems.length)
+    ? inv.lineItems.map(li=>({desc: li.desc, qty: li.qty, unit: li.unit, amount: li.amount}))
+    : [];
+  const btn = document.getElementById('realInvSendBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
+  try{
+    const res = await fetch('/api/invoices/send', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        to, subject, body,
+        invoice: {
+          number: inv.id,
+          issueDate: new Date().toISOString().slice(0,10),
+          dueDate: inv.dueDate,
+          amount: inv.amount,
+          currency: 'USD',
+          seller: {name: seller.name, address: seller.addr, email: seller.email},
+          billTo: {name: custName, address: [], email: to},
+          lineItems: items
+        }
+      })
+    });
+    const payload = await res.json();
+    if(!payload.ok){ toast('warn', 'Send failed: ' + payload.error); if(btn){ btn.disabled=false; btn.textContent='Send invoice'; } return; }
+    inv.stage = 'sent';
+    inv.sentAt = new Date().toISOString();
+    inv.messageId = payload.messageId;
+    inv.sentTo = payload.to;
+    if(typeof AUDIT !== 'undefined' && Array.isArray(AUDIT)){
+      AUDIT.unshift({
+        ts: (typeof nowStamp === 'function' ? nowStamp(0) : '2026-09-15'),
+        ev: 'invoice_sent', ent: 'invoice', actor: 'Alex Rivera',
+        target: inv.id, rationale: 'Emailed to ' + payload.to
+      });
+    }
+    renderInvoicePipeline();
+    closeDrawer();
+    toast('success', inv.id + ' emailed to ' + payload.to);
+  }catch(e){
+    toast('warn', 'Could not reach the server — is server.py running? (' + e.message + ')');
+    if(btn){ btn.disabled = false; btn.textContent = 'Send invoice'; }
+  }
 }
 
 function approveDeal(id){
@@ -2537,6 +2585,45 @@ function openInvoicePipelineDrawer(id){
     : (inv.real
         ? [{ desc: 'Contract total (line items not extracted)', dateRange: 'Due ' + inv.dueDate, qty:1, unit:inv.amount, amount:inv.amount }]
         : [{ desc: inv.milestone, dateRange: 'Due ' + inv.dueDate, qty:1, unit:inv.amount, amount:inv.amount }]);
+  // Real invoices get an honest send section: the real extracted billing
+  // email pre-filled (never the fabricated ap@<slug>.com billToFor() uses
+  // for the on-screen PDF preview), editable, with a real Send action.
+  const sendSection = inv.real ? (() => {
+    const seller = sellerFor(inv.linkedDealId);
+    const billEmail = inv.billingEmail || '';
+    const sentBlock = inv.stage === 'sent'
+      ? `<div class="dsec"><h4>Delivery status</h4>
+           <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+             <span class="pill blue dot">Sent</span>
+             <span style="font-size:12px;color:var(--text-2);margin-left:8px">${esc(inv.sentAt||'')}${inv.sentTo?' · to '+esc(inv.sentTo):''}${inv.messageId?' · Gmail message '+esc(inv.messageId):''}</span>
+           </div>
+         </div>` : '';
+    const noEmailWarn = !billEmail
+      ? `<div class="warn-box">No billing email extracted from the contract for this customer — enter one below before sending.</div>` : '';
+    return `
+      ${sentBlock}
+      <div class="dsec"><h4>Send invoice</h4>
+        ${noEmailWarn}
+        <div style="font-size:12px;color:var(--text-3);margin:-4px 0 10px">Emails the real PDF below as an attachment via Gmail.</div>
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px">
+          <div style="display:grid;grid-template-columns:60px 1fr;gap:6px 10px;align-items:center;font-size:12px">
+            <label style="color:var(--text-3);font-weight:600">To</label>
+            <input id="realInvTo" type="text" value="${esc(billEmail)}" placeholder="ap@customer.com" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;background:#fff">
+            <label style="color:var(--text-3);font-weight:600">Subject</label>
+            <input id="realInvSubject" type="text" value="Invoice ${esc(inv.id)} from ${esc(seller.name)}" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;background:#fff;font-weight:600">
+          </div>
+          <textarea id="realInvBody" style="margin-top:10px;width:100%;min-height:110px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px;line-height:1.55;background:#fff;resize:vertical">Hi ${esc(custName)},
+
+Please find attached invoice ${esc(inv.id)} for ${money(inv.amount)}, due ${esc(inv.dueDate)}.
+
+Thank you,
+${esc(seller.name)}</textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+            <button class="btn primary" id="realInvSendBtn" onclick="sendRealInvoiceEmail('${inv.id}')">${inv.stage==='sent'?'Send again':'Send invoice'}</button>
+          </div>
+        </div>
+      </div>`;
+  })() : '';
   const body = `
     <div class="dg">
       <div class="dfield mono"><div class="l">Invoice #</div><div class="v">${inv.id}${liveTag}</div></div>
@@ -2549,6 +2636,7 @@ function openInvoicePipelineDrawer(id){
       <div class="dfield mono"><div class="l">Source deal</div><div class="v">${inv.linkedDealId}</div></div>
     </div>
     ${dealRow}
+    ${sendSection}
     <div class="dsec"><h4>Invoice PDF preview</h4>
       <div style="font-family:var(--mono);font-size:11px;color:var(--text-3);margin-bottom:10px">${inv.id}.pdf · draft · stage: ${inv.stage}</div>
       ${renderInvoicePDF({
@@ -2556,18 +2644,15 @@ function openInvoicePipelineDrawer(id){
         issueDate: inv.dueDate,
         dueDate: inv.dueDate,
         seller: sellerFor(inv.linkedDealId),
-        billTo: billToFor(custName),
+        billTo: inv.real ? {name: custName, addr: [], email: inv.billingEmail || 'Not extracted'} : billToFor(custName),
         amount: inv.amount,
         currency: 'USD',
         lineItems: items
       })}
     </div>
   `;
-  const sendBtn = (inv.real && inv.stage==='draft')
-    ? `<button class="btn primary" onclick="sendRealInvoice('${inv.id}')">Send invoice</button>`
-    : '';
   openDrawer('Invoice · '+inv.id, `${inv.client} · ${inv.ctag}`, body,
-    `<button class="btn" onclick="closeDrawer()">Close</button>${sendBtn}`);
+    `<button class="btn" onclick="closeDrawer()">Close</button>`);
 }
 
 /* =====================================================================
