@@ -70,6 +70,11 @@ class Settings:
     qbo_client_secret: str | None = None
     qbo_refresh_token: str | None = None
     qbo_access_token: str | None = None
+    gmail_mode: str = "mock"  # "mock" | "live" — mock is the safe default
+    gmail_client_id: str | None = None
+    gmail_client_secret: str | None = None
+    gmail_refresh_token: str | None = None
+    gmail_sender_email: str | None = None
 
 
 def load_settings() -> Settings:
@@ -109,6 +114,18 @@ def load_settings() -> Settings:
                 "QBO_REFRESH_TOKEN + QBO_CLIENT_ID + QBO_CLIENT_SECRET"
             )
 
+    gmail_mode = (_env("GMAIL_MODE", "mock") or "mock").lower()
+    gmail_client_id = _env("GMAIL_CLIENT_ID")
+    gmail_client_secret = _env("GMAIL_CLIENT_SECRET")
+    gmail_refresh_token = _env("GMAIL_REFRESH_TOKEN")
+    gmail_sender_email = _env("GMAIL_SENDER_EMAIL")
+    if gmail_mode == "live":
+        if not (gmail_client_id and gmail_client_secret and gmail_refresh_token and gmail_sender_email):
+            raise RuntimeError(
+                "GMAIL_MODE=live needs GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, "
+                "GMAIL_REFRESH_TOKEN, and GMAIL_SENDER_EMAIL all set"
+            )
+
     return Settings(
         hubspot_token=token, hubspot_mode=mode,
         llm_mode=llm_mode, llm_provider=provider,
@@ -117,4 +134,6 @@ def load_settings() -> Settings:
         qbo_mode=qbo_mode, qbo_base_url=_env("QBO_BASE_URL", "https://sandbox-quickbooks.api.intuit.com"),
         qbo_realm_id=qbo_realm_id, qbo_client_id=qbo_client_id, qbo_client_secret=qbo_client_secret,
         qbo_refresh_token=qbo_refresh_token, qbo_access_token=qbo_access_token,
+        gmail_mode=gmail_mode, gmail_client_id=gmail_client_id, gmail_client_secret=gmail_client_secret,
+        gmail_refresh_token=gmail_refresh_token, gmail_sender_email=gmail_sender_email,
     )

@@ -122,8 +122,14 @@ class QboClient:
     def list_invoices(self, limit: int = 20) -> list[dict]:
         """Not in the original rally-ar-agent client -- added for exploring
         what sample data a sandbox actually has before building anything
-        that depends on its shape."""
-        res = self._query(f"SELECT Id, DocNumber, TotalAmt, Balance, CustomerRef FROM Invoice MAXRESULTS {limit}")
+        that depends on its shape. DueDate/TxnDate/BillEmail added for the
+        collections/dunning feature -- overdue detection needs a real due
+        date, and a real send-to address needs the invoice's own BillEmail
+        (not fabricated from the customer name)."""
+        res = self._query(
+            "SELECT Id, DocNumber, TotalAmt, Balance, CustomerRef, DueDate, TxnDate, BillEmail "
+            f"FROM Invoice MAXRESULTS {limit}"
+        )
         return res.get("QueryResponse", {}).get("Invoice", [])
 
     def _invoice_docnumber(self, txn_id: str) -> str:

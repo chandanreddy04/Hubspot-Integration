@@ -38,7 +38,29 @@ UI_DIR = Path(__file__).parent
 
 _cache: dict = {"deals": None, "computed_at": 0.0, "error": None}
 _cash_cache: dict = {"cash": None, "computed_at": 0.0, "error": None}
+_collections_cache: dict = {"collections": None, "computed_at": 0.0, "error": None}
 _CACHE_TTL_SECONDS = 300  # re-fetch at most every 5 minutes even without ?refresh=1
+
+# Design-doc dunning cadence (Section 10), each threshold the minimum
+# days-overdue for that stage -- checked highest-first so an invoice lands
+# in the latest stage it qualifies for. Labels match the UI's existing
+# DUNNING_STAGES kanban columns exactly (emma_workspace.html) so real
+# entries land in the right column instead of creating stray ones.
+_DUNNING_STAGES = [
+    (90, "Writeoff review"),
+    (60, "Escalated"),
+    (45, "Final demand"),
+    (22, "Second notice"),
+    (8, "First notice"),
+    (1, "Reminder"),
+]
+
+
+def _dunning_stage(days_overdue: int) -> str:
+    for threshold, label in _DUNNING_STAGES:
+        if days_overdue >= threshold:
+            return label
+    return "Reminder"
 
 
 def _prio_for(amount: float) -> str:
@@ -265,6 +287,106 @@ def get_cash(force_refresh: bool = False) -> tuple[dict | None, str | None]:
     return _cash_cache["cash"], _cash_cache["error"]
 
 
+def compute_collections() -> list[dict]:
+    """Real overdue invoices from the QuickBooks sandbox, each paired with a
+    draft dunning email built from real invoice/customer data.
+
+    Nothing here is ever sent automatically -- this only computes the list
+    and the draft text. An explicit POST to /api/collections/<id>/send,
+    itself only ever triggered by a person clicking Send in the UI, is
+    what actually calls the Gmail client.
+
+    An invoice with no BillEmail on file gets email=None -- shown as an
+    honest gap in the UI, never a guessed or fabricated address.
+    """
+    from datetime import date
+
+    from integrations.qbo import QboClient
+
+    settings = load_settings()
+    if settings.qbo_mode != "live":
+        raise RuntimeError("QBO_MODE is not 'live' -- set it in .env to fetch real collections data")
+
+    client = QboClient(settings)
+    invoices = client.list_invoices(limit=50)
+    today = date.today()
+
+    out = []
+    for inv in invoices:
+        balance = float(inv.get("Balance") or 0)
+        if balance <= 0:
+            continue
+        due_raw = inv.get("DueDate")
+        if not due_raw:
+            continue
+        try:
+            due_date = date.fromisoformat(due_raw)
+        except ValueError:
+            continue
+        days_overdue = (today - due_date).days
+        if days_overdue < 1:
+            continue  # due today or in the future -- not overdue yet
+
+        stage = _dunning_stage(days_overdue)
+        customer = inv.get("CustomerRef", {}).get("name") or "—"
+        docnum = inv.get("DocNumber", "—")
+        email = (inv.get("BillEmail") or {}).get("Address")
+
+        subject = f"Payment reminder: Invoice #{docnum} — {days_overdue} days overdue"
+        body = (
+            f"Hi {customer},\n\n"
+            f"This is a reminder that Invoice #{docnum} for ${balance:,.2f} was due on "
+            f"{due_date.isoformat()} and remains unpaid ({days_overdue} days overdue).\n\n"
+            "Please remit payment at your earliest convenience. If you've already sent "
+            "payment, please disregard this message.\n\n"
+            "Thank you,\nRally, Inc."
+        )
+
+        out.append({
+            "id": f"COLL-{inv.get('Id')}",
+            "inv": docnum,
+            "c": customer,
+            "amt": round(balance, 2),
+            "dueDate": due_date.isoformat(),
+            "dpd": days_overdue,
+            "stage": stage,
+            "email": email,
+            "draftSubject": subject,
+            "draftBody": body,
+            "sent": False,
+            "sentAt": None,
+            "real": True,
+        })
+
+    out.sort(key=lambda r: -r["dpd"])
+    return out
+
+
+def get_collections(force_refresh: bool = False) -> tuple[list[dict], str | None]:
+    stale = time.time() - _collections_cache["computed_at"] > _CACHE_TTL_SECONDS
+    if force_refresh or _collections_cache["collections"] is None or stale:
+        try:
+            fresh = compute_collections()
+            # Preserve sent/sentAt/messageId across recomputes -- a refresh
+            # shouldn't forget that something was already sent.
+            prior = {c["id"]: c for c in (_collections_cache["collections"] or [])}
+            for row in fresh:
+                old = prior.get(row["id"])
+                if old and old.get("sent"):
+                    row["sent"] = True
+                    row["sentAt"] = old.get("sentAt")
+                    row["messageId"] = old.get("messageId")
+                    row["sentTo"] = old.get("sentTo")
+            _collections_cache["collections"] = fresh
+            _collections_cache["error"] = None
+        except Exception as exc:
+            _collections_cache["error"] = str(exc)
+            if _collections_cache["collections"] is None:
+                _collections_cache["collections"] = []
+        _collections_cache["computed_at"] = time.time()
+    return _collections_cache["collections"], _collections_cache["error"]
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "EmmaUI/0.1"
 
@@ -337,6 +459,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({**cash, "error": error, "computed_at": _cash_cache["computed_at"]})
             return
 
+        if path == "/api/collections":
+            force = parse_qs(parsed.query).get("refresh", ["0"])[0] == "1"
+            collections, error = get_collections(force_refresh=force)
+            self._send_json({"collections": collections, "error": error, "computed_at": _collections_cache["computed_at"]})
+            return
+
         if path.startswith("/api/deals/") and path.endswith("/pdf"):
             deal_id = path[len("/api/deals/"):-len("/pdf")]
             self._serve_deal_pdf(deal_id)
@@ -364,6 +492,67 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def _send_collection_email(self, coll_id: str, overrides: dict) -> None:
+        """Actually sends one dunning email via Gmail. Only ever reached by
+        a real POST from the UI's own Send button -- there is no scheduler
+        or automatic trigger anywhere in this codebase that calls this.
+
+        Uses whatever the user edited in the draft box (to/subject/body),
+        falling back to the computed draft only for fields left untouched
+        -- e.g. redirecting a test send to a real inbox instead of the
+        sandbox's fake @intuit.com addresses, without losing the real
+        invoice data in the rest of the message."""
+        collections, _ = get_collections()
+        row = next((c for c in collections if c["id"] == coll_id), None)
+        if not row:
+            self._send_json({"ok": False, "error": "Collection entry not found"})
+            return
+
+        to = (overrides.get("to") or row.get("email") or "").strip()
+        if not to:
+            self._send_json({"ok": False, "error": "No email address on file for this invoice — cannot send"})
+            return
+        subject = overrides.get("subject") or row["draftSubject"]
+        body_text = overrides.get("body") or row["draftBody"]
+
+        settings = load_settings()
+        if settings.gmail_mode != "live":
+            self._send_json({"ok": False, "error": "GMAIL_MODE is not 'live' -- set it in .env to send real email"})
+            return
+
+        from integrations.gmail import GmailClient
+
+        client = GmailClient(settings)
+        try:
+            message_id = client.send_email(to, subject, body_text)
+        except Exception as exc:
+            self._send_json({"ok": False, "error": str(exc)})
+            return
+
+        row["sent"] = True
+        row["sentAt"] = datetime.now().isoformat()
+        row["messageId"] = message_id
+        row["sentTo"] = to
+        self._send_json({"ok": True, "messageId": message_id, "to": to})
+
+    def do_POST(self) -> None:  # noqa: N802
+        parsed = urlparse(self.path)
+        path = parsed.path
+
+        if path.startswith("/api/collections/") and path.endswith("/send"):
+            coll_id = path[len("/api/collections/"):-len("/send")]
+            length = int(self.headers.get("Content-Length", 0) or 0)
+            raw = self.rfile.read(length) if length else b""
+            try:
+                overrides = json.loads(raw) if raw else {}
+            except json.JSONDecodeError:
+                overrides = {}
+            self._send_collection_email(coll_id, overrides)
+            return
+
+        self.send_response(404)
+        self.end_headers()
 
 
 def main() -> None:

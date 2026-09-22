@@ -2356,7 +2356,7 @@ function renderCollections(){
       <div class="kbody">${cards.map(c=>`
         <div class="kcard" onclick="openCollectionsDrawer('${c.inv}')">
           <div class="kt"><span class="id">${c.inv}</span>${c.paused?'<span class="pill amber dot">paused</span>':`<span class="pill ${c.dpd>45?'red':c.dpd>15?'orange':'slate'} dot">${c.dpd}d late</span>`}</div>
-          <div class="cust">${c.c}</div>
+          <div class="cust">${c.c}${c.real?' <span class="pill green dot" style="font-size:9.5px;margin-left:4px">Live</span>':''}${c.real&&c.sent?' <span class="pill blue dot" style="font-size:9.5px;margin-left:4px">Sent</span>':''}</div>
           <div class="kmeta"><span class="amt">${money(c.amt)}</span><span style="color:var(--text-3)">DPD ${c.dpd}</span></div>
         </div>`).join('')}</div></div>`;
   }).join('');
@@ -3639,6 +3639,7 @@ function saveDunningDraft(){ toast('warn','Draft saved to mailbox'); }
 
 function openCollectionsDrawer(inv){
   const c = getCollections().find(x=>x.inv===inv); if(!c) return;
+  if(c.real){ openRealCollectionsDrawer(c); return; }
   const stageIdx = DUNNING_STAGES.indexOf(c.stage);
   const dayMap = [1,8,22,45,60,90];
   const baseMsgs = collectionThread(c);
@@ -3693,6 +3694,81 @@ function openCollectionsDrawer(inv){
     `<button class="btn danger" onclick="openWriteoffModal('${c.inv}')">Draft writeoff</button>
      <button class="btn" onclick="closeDrawer();toast('warn','Cadence paused')">${c.paused?'Resume':'Pause'} cadence</button>
      <button class="btn primary" onclick="closeDrawer();toast('success','Escalated to finance lead')">Escalate</button>`);
+}
+
+// Real deals get an honest drawer -- no fabricated email thread history
+// (nothing has actually been sent yet unless c.sent is true), a draft
+// built server-side from the real QBO invoice, and a Send button that
+// calls the real /api/collections/<id>/send endpoint.
+function openRealCollectionsDrawer(c){
+  const sentBlock = c.sent
+    ? `<div class="dsec"><h4>Email status</h4>
+         <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+           <span class="pill blue dot">Sent</span>
+           <span style="font-size:12px;color:var(--text-2);margin-left:8px">${esc(c.sentAt||'')}${c.sentTo?' · to '+esc(c.sentTo):''}${c.messageId?' · Gmail message '+esc(c.messageId):''}</span>
+         </div>
+       </div>`
+    : `<div class="dsec"><h4>Email status</h4>
+         <div style="font-size:12px;color:var(--text-3)">No emails sent yet for this invoice.</div>
+       </div>`;
+  const noEmailWarn = !c.email
+    ? `<div class="warn-box">No billing email on file in QuickBooks for this invoice — cannot send until one is added, or you enter one below.</div>`
+    : '';
+  const body = `
+    <div class="dg">
+      <div class="dfield"><div class="l">Invoice</div><div class="v" style="font-family:var(--mono);font-size:12px">${c.inv} <span class="pill green dot" style="font-size:9.5px;margin-left:4px">Live</span></div></div>
+      <div class="dfield"><div class="l">Customer</div><div class="v">${c.c}</div></div>
+      <div class="dfield"><div class="l">Amount</div><div class="v">${money(c.amt)}</div></div>
+      <div class="dfield"><div class="l">Days past due</div><div class="v">${c.dpd} · ${esc(c.stage)}</div></div>
+      <div class="dfield"><div class="l">Due date</div><div class="v">${esc(c.dueDate||'—')}</div></div>
+      <div class="dfield"><div class="l">Bill-to email (QuickBooks)</div><div class="v">${c.email?esc(c.email):'Not on file'}</div></div>
+    </div>
+    ${noEmailWarn}
+    ${sentBlock}
+    <div class="dsec"><h4>Draft email</h4>
+      <div style="font-size:12px;color:var(--text-3);margin:-4px 0 10px">Built from the real QuickBooks invoice and customer data. Edit the "To" field if you want to redirect this to a test inbox instead of the sandbox's own address.</div>
+      <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px">
+        <div style="display:grid;grid-template-columns:60px 1fr;gap:6px 10px;align-items:center;font-size:12px">
+          <label style="color:var(--text-3);font-weight:600">To</label>
+          <input id="realDunTo" type="text" value="${esc(c.email||'')}" placeholder="recipient@example.com" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;background:#fff">
+          <label style="color:var(--text-3);font-weight:600">Subject</label>
+          <input id="realDunSubject" type="text" value="${esc(c.draftSubject||'')}" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12px;background:#fff;font-weight:600">
+        </div>
+        <textarea id="realDunBody" style="margin-top:10px;width:100%;min-height:170px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:12.5px;line-height:1.55;background:#fff;resize:vertical">${esc(c.draftBody||'')}</textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button class="btn primary" id="realDunSendBtn" onclick="sendRealDunningEmail('${c.id}')">${c.sent?'Send again':'Send email'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  openDrawer('Collections · '+c.inv, `${c.c} · DPD ${c.dpd}`, body,
+    `<button class="btn" onclick="closeDrawer()">Close</button>`);
+}
+
+async function sendRealDunningEmail(collId){
+  const c = COLLECTIONS.find(x=>x.id===collId); if(!c) return;
+  const to = (document.getElementById('realDunTo').value||'').trim();
+  const subject = document.getElementById('realDunSubject').value;
+  const body = document.getElementById('realDunBody').value;
+  if(!to){ toast('warn','No recipient email address — cannot send'); return; }
+  const btn = document.getElementById('realDunSendBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
+  try{
+    const res = await fetch('/api/collections/' + collId + '/send', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({to, subject, body})
+    });
+    const payload = await res.json();
+    if(!payload.ok){ toast('warn', 'Send failed: ' + payload.error); if(btn){ btn.disabled=false; btn.textContent='Send email'; } return; }
+    c.sent = true; c.sentAt = new Date().toISOString(); c.messageId = payload.messageId; c.sentTo = payload.to;
+    toast('success', 'Email sent to ' + payload.to);
+    renderCollections();
+    openCollectionsDrawer(c.inv);
+  }catch(e){
+    toast('warn', 'Could not reach the server — is server.py running? (' + e.message + ')');
+    if(btn){ btn.disabled = false; btn.textContent = 'Send email'; }
+  }
 }
 
 function openIncidentDrawer(id){
@@ -4744,8 +4820,31 @@ async function loadRealCash(refresh){
   }
 }
 
+async function loadRealCollections(refresh){
+  try{
+    const res = await fetch('/api/collections' + (refresh ? '?refresh=1' : ''));
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const payload = await res.json();
+    const list = payload.collections || [];
+    if(payload.error && !list.length){
+      toast('warn', 'Live collections data unavailable: ' + payload.error);
+      return;
+    }
+    for(let i = COLLECTIONS.length - 1; i >= 0; i--){ if(COLLECTIONS[i].real) COLLECTIONS.splice(i, 1); }
+    COLLECTIONS.unshift(...list);
+    renderCollections();
+    if(list.length){
+      const staleNote = payload.error ? ' (showing last successful pull, refresh failed)' : '';
+      toast(payload.error ? 'warn' : 'success', list.length + ' real overdue invoice(s) loaded' + staleNote);
+    }
+  }catch(e){
+    toast('warn', 'Could not reach the live collections API — is server.py running? (' + e.message + ')');
+  }
+}
+
 loadRealDeals(false);
 loadRealCash(false);
+loadRealCollections(false);
 </script>
 
 <!-- ================== ASK EMMA CHAT ================== -->
