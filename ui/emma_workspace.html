@@ -3779,6 +3779,13 @@ async function sendRealDunningEmail(collId){
   const subject = document.getElementById('realDunSubject').value;
   const body = document.getElementById('realDunBody').value;
   if(!to){ toast('warn','No recipient email address — cannot send'); return; }
+  // Catch an obviously-invalid address before it hits Gmail's API and comes
+  // back as a cryptic "Invalid To header" -- this only rejects clearly
+  // malformed input (no @, no domain), not a judgment on real addresses.
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){
+    toast('warn', '"' + to + '" doesn\'t look like a valid email address — check the To field');
+    return;
+  }
   const btn = document.getElementById('realDunSendBtn');
   if(btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
   try{

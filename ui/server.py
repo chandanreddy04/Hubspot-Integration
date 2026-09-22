@@ -527,7 +527,10 @@ class Handler(BaseHTTPRequestHandler):
         try:
             message_id = client.send_email(to, subject, body_text)
         except Exception as exc:
-            self._send_json({"ok": False, "error": str(exc)})
+            # Echo back exactly what "to" was attempted -- Gmail's own error
+            # text doesn't include it, which makes an "Invalid To header"
+            # otherwise impossible to trace back to what was actually typed.
+            self._send_json({"ok": False, "error": f"{exc} (attempted To: {to!r})"})
             return
 
         row["sent"] = True
