@@ -726,6 +726,69 @@ def compute_due_reminders(collections: list[dict], state: dict) -> list[dict]:
     return due
 
 
+def compute_outstanding_invoices() -> tuple[list[dict], str | None, int]:
+    """Real outstanding invoices more than config.overdue_threshold_days
+    past their due date. Reuses get_collections()'s already-scoped
+    (real HubSpot deal customers only), already-cached/DB-backed real
+    invoice data instead of querying QuickBooks again -- this is a filter
+    on top of that, not a second live fetch.
+    """
+    settings = load_settings()
+    collections, error = get_collections()
+    threshold = settings.overdue_threshold_days
+    outstanding = [row for row in collections if row["dpd"] > threshold]
+    return outstanding, error, threshold
+
+
+def send_outstanding_reminders() -> dict:
+    """Batch job: sends a real reminder email for every real invoice more
+    than config.overdue_threshold_days overdue. Only ever reached by an
+    explicit person-triggered POST -- no scheduler.
+
+    Per explicit instruction, every email is redirected to
+    settings.outstanding_reminder_override_email (default
+    capstnprjt@gmail.com) instead of the customer's real BillEmail, so
+    this can be tested without emailing real or sandbox-fake customer
+    addresses. Set OUTSTANDING_REMINDER_OVERRIDE_EMAIL=real in .env to
+    switch to each invoice's actual billing email. The overridden email
+    body is prefixed with who it was actually meant for, so a redirected
+    test inbox stays legible.
+    """
+    settings = load_settings()
+    if settings.gmail_mode != "live":
+        raise RuntimeError("GMAIL_MODE is not 'live' -- set it in .env to send real reminder email")
+
+    outstanding, coll_error, threshold = compute_outstanding_invoices()
+
+    from integrations.gmail import GmailClient
+
+    client = GmailClient(settings)
+    override = settings.outstanding_reminder_override_email
+
+    sent, failed = [], []
+    for row in outstanding:
+        real_to = (row.get("email") or "").strip()
+        to = override or real_to
+        if not to:
+            failed.append({"id": row["id"], "c": row["c"], "reason": "no billing email on file and no override configured"})
+            continue
+        body = row["draftBody"]
+        if override:
+            body = f"[TEST MODE — intended recipient: {row['c']} <{real_to or 'no email on file'}>]\n\n{body}"
+        try:
+            message_id = client.send_email(to, row["draftSubject"], body)
+        except Exception as exc:
+            failed.append({"id": row["id"], "c": row["c"], "reason": f"{exc} (attempted To: {to!r})"})
+            continue
+        sent.append({"id": row["id"], "c": row["c"], "to": to, "intendedFor": real_to or None, "messageId": message_id})
+
+    return {
+        "thresholdDays": threshold, "checked": len(outstanding),
+        "sent": sent, "failed": failed, "override": override,
+        "collectionsError": coll_error,
+    }
+
+
 def run_reminder_cycle() -> dict:
     """Phase 4: one explicit, person-triggered action that sends every real
     reminder currently due (7 days before deadline / day of deadline / 14
@@ -851,6 +914,15 @@ class Handler(BaseHTTPRequestHandler):
             force = parse_qs(parsed.query).get("refresh", ["0"])[0] == "1"
             recon, error = get_deal_reconciliation(force_refresh=force)
             self._send_json({"reconciliation": recon, "error": error, "computed_at": _deal_recon_cache["computed_at"]})
+            return
+
+        if path == "/api/invoices/outstanding":
+            try:
+                outstanding, error, threshold = compute_outstanding_invoices()
+            except Exception as exc:
+                self._send_json({"invoices": [], "error": str(exc), "thresholdDays": load_settings().overdue_threshold_days})
+                return
+            self._send_json({"invoices": outstanding, "error": error, "thresholdDays": threshold})
             return
 
         if path.startswith("/api/deals/") and path.endswith("/pdf"):
@@ -1029,6 +1101,15 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/collections/reminders/run":
             try:
                 result = run_reminder_cycle()
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)})
+                return
+            self._send_json({"ok": True, **result})
+            return
+
+        if path == "/api/invoices/outstanding/send-reminders":
+            try:
+                result = send_outstanding_reminders()
             except Exception as exc:
                 self._send_json({"ok": False, "error": str(exc)})
                 return
