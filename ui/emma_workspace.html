@@ -5130,8 +5130,14 @@ async function runReminderCycle(){
       toast('warn', 'Reminder cycle failed: ' + (payload.error || ('HTTP ' + res.status)));
       return;
     }
-    const {checked, due, sent, failed, skipped} = payload;
-    if(!due){
+    const {checked, due, sent, failed, skipped, collectionsError} = payload;
+    if(!checked && collectionsError){
+      // 0 checked doesn't always mean "nothing overdue" -- it can mean the
+      // underlying QuickBooks pull itself failed (e.g. an expired OAuth
+      // token) and get_collections() fell back to an empty list. Surface
+      // that instead of silently reporting a clean "none due yet".
+      toast('warn', 'Reminder cycle ran, but the underlying QuickBooks pull failed: ' + collectionsError);
+    } else if(!due){
       toast('success', 'Reminder cycle ran · checked ' + checked + ' real invoice(s) in the -7/0/+14 day window · none due yet');
     } else {
       const parts = [sent.length + ' sent'];
