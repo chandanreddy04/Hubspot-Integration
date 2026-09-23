@@ -1399,6 +1399,12 @@ const CASH_PARTIAL = [
   {qb:'QB-P-88164',c:'Lodestone Partners',  amt:100000,inv:'INV-2026-06-0812', due:295000,conf:0.96, when:'Aug 31 · 08:20'},
 ];
 
+// Populated by loadRealDealReconciliation() from /api/deals/reconciliation --
+// real HubSpot deals matched to real QuickBooks invoices, one row per deal.
+// Drives both the "Deal payment status" table and the Daily reconciliation
+// tiles/variance breakdown above it, so both sections tell the same story.
+let DEAL_RECON = [];
+
 const DUNNING_STAGES = ['Reminder','First notice','Second notice','Final demand','Escalated','Writeoff review'];
 const COLLECTIONS = [
   {c:'Meridian Industries', inv:'INV-2026-08-0891', amt:28000, dpd:22, stage:'Second notice', paused:true, dispute:true},
@@ -4153,43 +4159,38 @@ const RECON_TREND = [
   {d:'Sep 15',s:'amber',v:1600},{d:'Sep 16',s:'amber',v:7200}
 ];
 
-// Real 3-way tie-out from data already loaded client-side (real invoices +
-// real QBO cash) -- no new endpoint needed, this only aggregates what
-// loadRealCash()/sendRealInvoiceEmail() already populated. Returns null
-// when nothing real has loaded yet, so the caller can fall back to the
-// demo numbers instead of showing an all-zero tile that looks broken.
+// Real 3-way tie-out sourced from DEAL_RECON (real HubSpot deals reconciled
+// against real QuickBooks invoices, from /api/deals/reconciliation) -- the
+// same data the "Deal payment status" table shows, aggregated here instead
+// of re-deriving it from the raw QBO payment ledger, so this dashboard and
+// that table always tell the same story. Returns null when nothing real has
+// loaded yet, so the caller can fall back to the demo numbers instead of
+// showing an all-zero tile that looks broken.
 //
 // Honest note on "Cash applied to GL": this system has no separate
-// general-ledger integration, so QBO itself stands in for the GL --
-// "applied" here means QBO's own LinkedTxn ties a payment to one of our
-// real invoices (matched) or a real invoice shows partial payment, not a
-// synced-to-a-different-system fact the way the design doc's 3-way
-// tie-out technically describes.
+// general-ledger integration, so QBO itself stands in for the GL -- "applied"
+// here means the amount QuickBooks' own Balance field says has been paid
+// against a real deal's matched invoice, not a synced-to-a-different-system
+// fact the way the design doc's 3-way tie-out technically describes.
 function _computeReconData(){
-  const sentOrPaid = ['sent','paid'];
-  const realInvoices = INVOICE_PIPELINE.rally.filter(i=>i.real && sentOrPaid.includes(i.stage));
-  const realMatched = CASH_MATCHED.filter(c=>c.real);
-  const realUnmatched = CASH_UNMATCHED.filter(c=>c.real);
-  const realPartial = CASH_PARTIAL.filter(c=>c.real);
-  if(!realInvoices.length && !realMatched.length && !realUnmatched.length && !realPartial.length) return null;
+  if(!DEAL_RECON.length) return null;
+  const invoiced = DEAL_RECON.filter(d=>d.status!=='not_invoiced');
 
-  const invAmt = realInvoices.reduce((s,i)=>s+(Number(i.amount)||0),0);
-  const matchedAmt = realMatched.reduce((s,c)=>s+(Number(c.amt)||0),0);
-  const unmatchedAmt = realUnmatched.reduce((s,c)=>s+(Number(c.amt)||0),0);
-  const partialAmt = realPartial.reduce((s,c)=>s+(Number(c.amt)||0),0);
-  const payAmt = matchedAmt + unmatchedAmt + partialAmt;
-  const payCnt = realMatched.length + realUnmatched.length + realPartial.length;
-  const glAmt = matchedAmt + partialAmt;
-  const glCnt = realMatched.length + realPartial.length;
+  const invAmt = invoiced.reduce((s,d)=>s+(Number(d.qboTotal)||0),0);
+  const paidAmt = invoiced.reduce((s,d)=>s+((Number(d.qboTotal)||0)-(Number(d.qboBalance)||0)),0);
 
-  const varianceRows = [
-    ...realUnmatched.map(c=>({ref:c.qb, c:c.c, amt:c.amt, reason:'Unmatched payment', reasonTone:'red',
-      note:'No linked invoice in QuickBooks — no automatic matching built yet', real:true})),
-    ...realPartial.map(c=>({ref:c.inv, c:c.c, amt:Math.max(0,(c.due||0)-(c.amt||0)), reason:'Partial payment', reasonTone:'amber',
-      note:'Applied '+money(c.amt)+' of '+money(c.due)+' due', real:true})),
-  ];
+  const varianceRows = invoiced
+    .filter(d=>d.status==='partial' || d.status==='unpaid')
+    .map(d=>{
+      const due = Number(d.qboTotal)||0, bal = Number(d.qboBalance)||0;
+      return d.status==='unpaid'
+        ? {ref:d.qboDocNumber, c:d.c, amt:bal, reason:'Unpaid', reasonTone:'red',
+           note:'No payment applied yet — '+money(due)+' due', real:true}
+        : {ref:d.qboDocNumber, c:d.c, amt:bal, reason:'Partial payment', reasonTone:'amber',
+           note:'Applied '+money(due-bal)+' of '+money(due)+' due', real:true};
+    });
 
-  return {invAmt, invCnt:realInvoices.length, payAmt, payCnt, glAmt, glCnt, varianceRows};
+  return {invAmt, invCnt:invoiced.length, payAmt:paidAmt, payCnt:invoiced.length, glAmt:paidAmt, glCnt:invoiced.length, varianceRows};
 }
 
 function renderReconTiles(){
@@ -4202,10 +4203,10 @@ function renderReconTiles(){
   const variance = invAmt - payAmt;
   const liveTag = real ? ' <span class="pill green dot" style="font-size:9.5px;margin-left:4px">Live</span>' : '';
   const invMeta = real
-    ? (invCnt ? invCnt+' invoice'+(invCnt===1?'':'s')+' sent this session' : 'No real invoices sent yet this session')
+    ? (invCnt ? invCnt+' real deal'+(invCnt===1?'':'s')+' invoiced in QuickBooks' : 'No real deals invoiced in QuickBooks yet')
     : invCnt+' invoices · reconciled';
   const payMeta = real
-    ? payCnt+' real QuickBooks payment'+(payCnt===1?'':'s')+(variance!==0?' · vs. invoices sent '+money(variance):'')
+    ? payCnt+' invoiced deal'+(payCnt===1?'':'s')+(variance!==0?' · '+money(variance)+' still outstanding':' · fully collected')
     : payCnt+' payments · mismatch '+money(variance);
   wrap.innerHTML = `
     <div class="recon-tile" style="--tone:#0d6b2c;--tone-bg:var(--green-bg)">
@@ -4221,14 +4222,14 @@ function renderReconTiles(){
     <div class="recon-tile" style="--tone:#8a5a10;--tone-bg:var(--amber-bg)">
       <div class="rt-hd"><span class="rt-ico">!</span><span class="rt-lbl">Cash applied${real?' (QuickBooks)':' to GL'}${liveTag}</span></div>
       <div class="rt-v">${money(glAmt)}</div>
-      <div class="rt-meta">${glCnt} application${glCnt===1?'':'s'}${real?' · matched or partial in QuickBooks':' · matches payments received'}</div>
+      <div class="rt-meta">${glCnt} real deal${glCnt===1?'':'s'}${real?' reconciled against QuickBooks':' · matches payments received'}</div>
     </div>
   `;
   const varianceRows = real ? real.varianceRows : RECON_UNMATCHED;
   const varianceHdr = document.getElementById('reconVarianceHdr');
   if(varianceHdr){
     const total = varianceRows.reduce((s,r)=>s+(Number(r.amt)||0),0);
-    varianceHdr.textContent = 'Variance breakdown · ' + varianceRows.length + ' ' + (real?'real ':'') + 'unmatched item' + (varianceRows.length===1?'':'s') + ' · ' + money(total) + ' total';
+    varianceHdr.textContent = 'Variance breakdown · ' + varianceRows.length + ' ' + (real?'real deal':'unmatched item') + (varianceRows.length===1?'':'s') + (real?' with an outstanding balance':'') + ' · ' + money(total) + ' total';
   }
   const tb = document.getElementById('reconUnmatchedBody');
   if(tb){
@@ -5143,6 +5144,8 @@ async function loadRealDealReconciliation(refresh){
       return;
     }
     renderDealReconciliation(rows);
+    DEAL_RECON = rows;
+    if(typeof renderReconTiles === 'function') renderReconTiles();
     if(rows.length){
       const matchedCount = rows.filter(r=>r.status!=='not_invoiced').length;
       const staleNote = payload.error ? ' (showing last successful pull, refresh failed)' : '';
