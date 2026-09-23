@@ -50,6 +50,12 @@ _SCHEMA_HINT = {
     "signatory_name": "string — full name of the CUSTOMER's (not Provider's) signatory, else null",
     "signatory_title": "string — title of the customer's signatory, else null",
     "signatory_date": "YYYY-MM-DD — date the customer signatory signed, if stated separately from effective_date, else null",
+    "invoicing_schedule": (
+        "one of 'monthly', 'quarterly', 'annual', 'one_time', or null — how the contract says billing "
+        "should occur. Return 'one_time' only if the contract explicitly describes a single lump-sum "
+        "invoice/payment. Return null (not a guess) if the contract states a total value but doesn't "
+        "actually describe a billing cadence one way or the other."
+    ),
 }
 
 _PROMPT = (
@@ -209,7 +215,7 @@ def extract_heuristic(agreement_text: str) -> ExtractionResult:
     # Same story for term length, auto-renew, and signatory details -- no
     # regex heuristic exists for these either, so they're an honest gap
     # in mock mode too, not just in the live LLM path.
-    for key in ("term_months", "auto_renew", "signatory_name", "signatory_title", "signatory_date"):
+    for key in ("term_months", "auto_renew", "signatory_name", "signatory_title", "signatory_date", "invoicing_schedule"):
         fields[key] = None
         conf[key] = 0.0
 

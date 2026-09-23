@@ -2064,49 +2064,96 @@ function _dueDateFromTerms(terms){
   return dt.toISOString().slice(0,10);
 }
 
-// Creates (or, on re-approve, updates in place) a real Invoice Pipeline
-// entry from an extracted deal's autofilled fields -- this is what makes
+function _addMonths(dateStr, months){
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0,10);
+}
+
+// monthly/quarterly/annual -> the interval in months; one_time/unset -> null
+function _scheduleIntervalMonths(schedule){
+  if(schedule === 'monthly') return 1;
+  if(schedule === 'quarterly') return 3;
+  if(schedule === 'annual') return 12;
+  return null;
+}
+
+// Creates (or, on re-approve, updates in place) real Invoice Pipeline
+// entries from an extracted deal's autofilled fields -- this is what makes
 // "Approve deal" actually issue something, instead of just flipping a
 // status flag with no invoice record behind it.
+//
+// A one-time (or unstated) invoicing schedule creates a single invoice,
+// same as before. A real, extracted-or-user-set recurring schedule
+// creates a full series spaced by that interval. The itemized per-period
+// schedule isn't something we extract, so each invoice in the series
+// gets an even split of the contract total -- an honest default, not an
+// invented breakdown. Returns the array of invoices created/updated
+// (length 1 for one-time).
 function createOrUpdateInvoiceFromDeal(d){
   const items = _dealLineItems(d);
-  const invId = 'INV-' + String(d.id).replace(/[^A-Za-z0-9]/g,'');
   const pool = INVOICE_PIPELINE.rally;
-  const dueDate = _dueDateFromTerms(d.terms);
-  const milestone = items.length
-    ? items.length + ' line item' + (items.length===1?'':'s') + ' · from contract'
-    : 'Contract total · line items not extracted';
   const ctag = d.id + ' · ' + (d.contract ? d.contract.filename : d.c);
-  let inv = pool.find(x=>x.id===invId);
-  if(inv){
-    inv.amount = d.amt;
-    inv.dueDate = dueDate;
-    inv.milestone = milestone;
-    inv.ctag = ctag;
-    inv.customer = d.c;
-    inv.lineItems = items;
-    inv.billingEmail = d.billingEmail || null;
-    inv.approvedAt = (typeof nowStamp === 'function' ? nowStamp(0) : new Date().toISOString());
-  } else {
-    inv = {
-      id: invId,
-      client: 'Rally UXR',
-      customer: d.c,
-      ctag: ctag,
-      milestone: milestone,
-      amount: d.amt,
-      dueDate: dueDate,
-      stage: 'draft',
-      prio: d.prio || 'med',
-      linkedDealId: d.id,
-      real: true,
-      approvedAt: (typeof nowStamp === 'function' ? nowStamp(0) : new Date().toISOString()),
-      lineItems: items,
-      billingEmail: d.billingEmail || null,
-    };
-    pool.unshift(inv);
+  const baseDueDate = _dueDateFromTerms(d.terms);
+  const intervalMonths = _scheduleIntervalMonths(d.invoicingSchedule);
+
+  let periodCount = 1;
+  if(intervalMonths && d.termMonths){
+    periodCount = Math.max(1, Math.round(d.termMonths / intervalMonths));
+  } else if(intervalMonths){
+    // A recurring cadence is stated but the contract term length isn't --
+    // still demonstrate real recurring behavior rather than silently
+    // collapsing to one invoice, using a conservative default count.
+    periodCount = intervalMonths === 1 ? 12 : intervalMonths === 3 ? 4 : 1;
   }
-  return inv;
+  const perInvoiceAmount = Math.round((d.amt / periodCount) * 100) / 100;
+
+  const created = [];
+  for(let i = 0; i < periodCount; i++){
+    const invId = periodCount > 1
+      ? 'INV-' + String(d.id).replace(/[^A-Za-z0-9]/g,'') + '-' + (i + 1)
+      : 'INV-' + String(d.id).replace(/[^A-Za-z0-9]/g,'');
+    const dueDate = intervalMonths ? _addMonths(baseDueDate, intervalMonths * i) : baseDueDate;
+    const milestone = periodCount > 1
+      ? 'Recurring ' + d.invoicingSchedule + ' invoice ' + (i + 1) + ' of ' + periodCount
+      : (items.length ? items.length + ' line item' + (items.length===1?'':'s') + ' · from contract' : 'Contract total · line items not extracted');
+
+    let inv = pool.find(x=>x.id===invId);
+    if(inv){
+      inv.amount = perInvoiceAmount;
+      inv.dueDate = dueDate;
+      inv.milestone = milestone;
+      inv.ctag = ctag;
+      inv.customer = d.c;
+      inv.lineItems = periodCount === 1 ? items : [];
+      inv.billingEmail = d.billingEmail || null;
+      inv.seriesIndex = i + 1;
+      inv.seriesCount = periodCount;
+      inv.approvedAt = (typeof nowStamp === 'function' ? nowStamp(0) : new Date().toISOString());
+    } else {
+      inv = {
+        id: invId,
+        client: 'Rally UXR',
+        customer: d.c,
+        ctag: ctag,
+        milestone: milestone,
+        amount: perInvoiceAmount,
+        dueDate: dueDate,
+        stage: 'draft',
+        prio: d.prio || 'med',
+        linkedDealId: d.id,
+        real: true,
+        approvedAt: (typeof nowStamp === 'function' ? nowStamp(0) : new Date().toISOString()),
+        lineItems: periodCount === 1 ? items : [],
+        billingEmail: d.billingEmail || null,
+        seriesIndex: i + 1,
+        seriesCount: periodCount,
+      };
+      pool.unshift(inv);
+    }
+    created.push(inv);
+  }
+  return created;
 }
 
 // Actually emails a real invoice PDF to the customer via /api/invoices/send
@@ -2175,17 +2222,23 @@ function approveDeal(id){
   const d = findDeal(id); if(!d) return;
   d.review = 'approved';
   if(d.real){
-    const inv = createOrUpdateInvoiceFromDeal(d);
+    const invs = createOrUpdateInvoiceFromDeal(d);
+    const first = invs[0];
     if(typeof AUDIT !== 'undefined' && Array.isArray(AUDIT)){
       AUDIT.unshift({
         ts: (typeof nowStamp === 'function' ? nowStamp(0) : '2026-09-15'),
         ev: 'invoice_drafted', ent: 'invoice', actor: 'Alex Rivera',
-        target: inv.id, rationale: 'Approved ' + d.id + ' · invoice autofilled from extracted contract terms'
+        target: first.id, rationale: 'Approved ' + d.id + ' · ' + (invs.length > 1
+          ? invs.length + ' recurring (' + d.invoicingSchedule + ') invoices autofilled from extracted contract terms'
+          : 'invoice autofilled from extracted contract terms')
       });
     }
     renderPipeline();
     renderInvoicePipeline();
-    toast('success', `Approved · ${inv.id} created from contract, staged in Draft`);
+    const msg = invs.length > 1
+      ? `Approved · ${invs.length} recurring invoices created (${first.id} … ${invs[invs.length-1].id}), staged in Draft`
+      : `Approved · ${first.id} created from contract, staged in Draft`;
+    toast('success', msg);
     return;
   }
   const sched = (typeof HALCYON_SCHEDULE !== 'undefined' && HALCYON_SCHEDULE[d.id]) || [];
@@ -2257,7 +2310,7 @@ function saveDealEdits(id){
   const d = findDeal(id); if(!d) return;
   const before = {
     amt: d.amt, terms: d.terms, c: d.c, owner: d.owner,
-    termMonths: d.termMonths, autoRenew: d.autoRenew,
+    termMonths: d.termMonths, autoRenew: d.autoRenew, invoicingSchedule: d.invoicingSchedule,
     party_from: d.contract && d.contract.party_from,
     party_to: d.contract && d.contract.party_to,
     signatories: d.contract && d.contract.signatories ? d.contract.signatories.slice() : null,
@@ -2273,6 +2326,8 @@ function saveDealEdits(id){
   d.termMonths = termMonthsRaw ? Number(termMonthsRaw) : null;
   const autoRenewSel = document.getElementById('edit-auto-renew');
   d.autoRenew = autoRenewSel ? (autoRenewSel.value === 'yes' ? true : autoRenewSel.value === 'no' ? false : null) : d.autoRenew;
+  const scheduleSel = document.getElementById('edit-invoicing-schedule');
+  d.invoicingSchedule = scheduleSel ? (scheduleSel.value === 'unset' ? null : scheduleSel.value) : d.invoicingSchedule;
   if(d.contract){
     d.contract.party_from = _readStr('edit-party-from') || d.contract.party_from;
     d.contract.party_to = _readStr('edit-party-to') || d.contract.party_to;
@@ -2296,6 +2351,7 @@ function saveDealEdits(id){
   if(before.owner !== d.owner) changed.push('deal owner');
   if(before.termMonths !== d.termMonths) changed.push('contract term');
   if(before.autoRenew !== d.autoRenew) changed.push('auto-renew');
+  if(before.invoicingSchedule !== d.invoicingSchedule) changed.push('invoicing schedule');
   if(d.contract){
     if(before.party_from !== d.contract.party_from || before.party_to !== d.contract.party_to) changed.push('parties');
     if(!before.signatories || before.signatories.join('|') !== (d.contract.signatories||[]).join('|')) changed.push('signatories');
@@ -2978,6 +3034,18 @@ function openDealDrawer(id, editMode){
          </select>
        </div>`
     : `<div class="dfield"><div class="l">Auto-renew</div><div class="v">${d.progressive?'—':(d.real?(d.autoRenew===true?'Yes':d.autoRenew===false?'No':'Not extracted'):'—')}</div></div>`;
+  const scheduleLabels = {monthly:'Monthly', quarterly:'Quarterly', annual:'Annual', one_time:'One-time'};
+  const invoicingScheduleField = editMode
+    ? `<div class="dfield editing"><div class="l">Invoicing schedule</div>
+         <select class="di" id="edit-invoicing-schedule">
+           <option value="unset"${!d.invoicingSchedule?' selected':''}>Not stated (one-time)</option>
+           <option value="one_time"${d.invoicingSchedule==='one_time'?' selected':''}>One-time</option>
+           <option value="monthly"${d.invoicingSchedule==='monthly'?' selected':''}>Monthly</option>
+           <option value="quarterly"${d.invoicingSchedule==='quarterly'?' selected':''}>Quarterly</option>
+           <option value="annual"${d.invoicingSchedule==='annual'?' selected':''}>Annual</option>
+         </select>
+       </div>`
+    : `<div class="dfield"><div class="l">Invoicing schedule</div><div class="v">${d.real?(scheduleLabels[d.invoicingSchedule]||'Not extracted (one-time)'):'—'}</div></div>`;
 
   const body = `
     ${headerBar}
@@ -3004,7 +3072,7 @@ function openDealDrawer(id, editMode){
       <div class="dg">
         <div class="dfield"><div class="l">Confidence</div><div class="v">${d.conf?d.conf.toFixed(2):'—'}${d.conf&&d.conf<0.85?' <span class="pill red">low</span>':''}</div></div>
         ${contractTermField}
-        <div class="dfield"><div class="l">Billing frequency</div><div class="v">${d.progressive?'Milestone-based · '+ (sched?sched.length:0) +' invoices':d.real?'Not extracted':'Annual upfront'}</div></div>
+        ${d.progressive ? `<div class="dfield"><div class="l">Billing frequency</div><div class="v">Milestone-based · ${sched?sched.length:0} invoices</div></div>` : invoicingScheduleField}
         ${autoRenewField}
         <div class="dfield"><div class="l">Signatory</div><div class="v">${d.progressive?'Contract counter-signer':(d.real?(contract&&contract.signatories&&contract.signatories.length?contract.signatories.join(' · '):'Not extracted'):'Rachel Kim, CFO')}</div></div>
       </div>

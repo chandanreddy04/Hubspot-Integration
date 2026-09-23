@@ -154,6 +154,7 @@ def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int
         "lineItems": _build_line_items(fields.get("line_items")),
         "termMonths": fields.get("term_months"),
         "autoRenew": fields.get("auto_renew"),
+        "invoicingSchedule": fields.get("invoicing_schedule"),  # 'monthly'|'quarterly'|'annual'|'one_time'|None
         "agreementRef": deal.agreement_ref,  # lets the UI re-fetch the real PDF bytes on demand
         "billingEmail": billing_email or None,  # real send-to for invoice delivery; None is an honest gap, not fabricated
         "contract": {
