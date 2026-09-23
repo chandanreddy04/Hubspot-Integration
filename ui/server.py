@@ -257,6 +257,12 @@ def compute_cash() -> dict:
     matching algorithm has been built, confidence is honestly 0.0 and the
     candidate-invoice list is genuinely empty rather than fabricated.
     "Partial" is derived directly from real invoice Balance vs TotalAmt.
+
+    Scoped to customers that match a real HubSpot deal (by the same
+    normalized-name key used for deal reconciliation) -- a QBO sandbox
+    company comes with its own unrelated sample customers (Amy's Bird
+    Sanctuary, Cool Cars, etc.) that would otherwise flood this view and
+    bury the transactions that actually matter for this app.
     """
     from integrations.qbo import QboClient
 
@@ -264,9 +270,15 @@ def compute_cash() -> dict:
     if settings.qbo_mode != "live":
         raise RuntimeError("QBO_MODE is not 'live' -- set it in .env to fetch real cash data")
 
+    deals, _ = get_deals()
+    real_customer_keys = {_normalize_customer_name(d.get("c", "")) for d in deals if d.get("real")}
+    real_customer_keys.discard("")
+
     client = QboClient(settings)
-    payments, _ = client.list_payments_since(None)
-    invoices = client.list_invoices(limit=50)
+    all_payments, _ = client.list_payments_since(None)
+    all_invoices = client.list_invoices(limit=50)
+    payments = [p for p in all_payments if _normalize_customer_name(p.customer_name) in real_customer_keys]
+    invoices = [i for i in all_invoices if _normalize_customer_name(i.get("CustomerRef", {}).get("name", "")) in real_customer_keys]
 
     matched, unmatched = [], []
     for p in payments:
