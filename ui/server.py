@@ -19,6 +19,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import re
 import sys
 import time
 from datetime import datetime
@@ -41,6 +42,7 @@ UI_DIR = Path(__file__).parent
 _cache: dict = {"deals": None, "computed_at": 0.0, "error": None}
 _cash_cache: dict = {"cash": None, "computed_at": 0.0, "error": None}
 _collections_cache: dict = {"collections": None, "computed_at": 0.0, "error": None}
+_deal_recon_cache: dict = {"data": None, "computed_at": 0.0, "error": None}
 _CACHE_TTL_SECONDS = 300  # re-fetch at most every 5 minutes even without ?refresh=1
 
 # Design-doc dunning cadence (Section 10), each threshold the minimum
@@ -318,6 +320,98 @@ def get_cash(force_refresh: bool = False) -> tuple[dict | None, str | None]:
     return _cash_cache["cash"], _cash_cache["error"]
 
 
+_LEGAL_SUFFIXES = (" inc", " llc", " corp", " corporation", " ltd", " co", " partners", " solutions", " group")
+
+
+def _normalize_customer_name(name: str) -> str:
+    """Loose match key for a real deal's customer name against a QuickBooks
+    customer name -- lowercase, strip punctuation and common legal
+    suffixes, so a human manually creating the matching QBO customer
+    doesn't need a byte-for-byte identical name for this to find it."""
+    if not name:
+        return ""
+    n = re.sub(r"[,.]", "", name.lower()).strip()
+    for suffix in _LEGAL_SUFFIXES:
+        if n.endswith(suffix):
+            n = n[: -len(suffix)].strip()
+    return n
+
+
+def compute_deal_reconciliation() -> list[dict]:
+    """Reconciles each real deal against real QuickBooks invoice data --
+    honestly shows paid/partial/unpaid, or 'not yet invoiced in
+    QuickBooks' when nothing matches at all.
+
+    Matches by customer name only (loosely normalized), not by invoice
+    number: this app never writes invoices into QuickBooks (deliberately
+    -- no dummy/write access), so there's no shared invoice ID to match
+    on. A real match only happens once a human has created a real
+    QuickBooks customer + invoice under a name that resolves to the same
+    normalized key as the real deal's customer.
+    """
+    from integrations.qbo import QboClient
+
+    settings = load_settings()
+    if settings.qbo_mode != "live":
+        raise RuntimeError("QBO_MODE is not 'live' -- set it in .env to fetch real cash data")
+
+    deals, _ = get_deals()
+    client = QboClient(settings)
+    qbo_invoices = client.list_invoices(limit=50)
+
+    by_customer: dict[str, list[dict]] = {}
+    for inv in qbo_invoices:
+        key = _normalize_customer_name(inv.get("CustomerRef", {}).get("name", ""))
+        if key:
+            by_customer.setdefault(key, []).append(inv)
+
+    out = []
+    for d in deals:
+        if not d.get("real"):
+            continue
+        key = _normalize_customer_name(d.get("c", ""))
+        matches = by_customer.get(key, [])
+        if not matches:
+            out.append({
+                "dealId": d["id"], "c": d["c"], "amt": d["amt"],
+                "status": "not_invoiced", "statusLabel": "Not yet invoiced in QuickBooks",
+                "qboTotal": None, "qboBalance": None, "qboDocNumber": None,
+            })
+            continue
+        # If more than one real QBO invoice matches this customer, use
+        # whichever total is closest to our real deal amount.
+        best = min(matches, key=lambda i: abs(float(i.get("TotalAmt") or 0) - d["amt"]))
+        total = float(best.get("TotalAmt") or 0)
+        balance = float(best.get("Balance") or 0)
+        if balance <= 0:
+            status, label = "paid", "Fully paid"
+        elif balance < total:
+            status, label = "partial", "Partially paid"
+        else:
+            status, label = "unpaid", "Unpaid"
+        out.append({
+            "dealId": d["id"], "c": d["c"], "amt": d["amt"],
+            "status": status, "statusLabel": label,
+            "qboTotal": round(total, 2), "qboBalance": round(balance, 2),
+            "qboDocNumber": best.get("DocNumber", "—"),
+        })
+    return out
+
+
+def get_deal_reconciliation(force_refresh: bool = False) -> tuple[list[dict], str | None]:
+    stale = time.time() - _deal_recon_cache["computed_at"] > _CACHE_TTL_SECONDS
+    if force_refresh or _deal_recon_cache["data"] is None or stale:
+        try:
+            _deal_recon_cache["data"] = compute_deal_reconciliation()
+            _deal_recon_cache["error"] = None
+        except Exception as exc:
+            _deal_recon_cache["error"] = str(exc)
+            if _deal_recon_cache["data"] is None:
+                _deal_recon_cache["data"] = []
+        _deal_recon_cache["computed_at"] = time.time()
+    return _deal_recon_cache["data"], _deal_recon_cache["error"]
+
+
 def compute_collections() -> list[dict]:
     """Real overdue invoices from the QuickBooks sandbox, each paired with a
     draft dunning email built from real invoice/customer data.
@@ -494,6 +588,12 @@ class Handler(BaseHTTPRequestHandler):
             force = parse_qs(parsed.query).get("refresh", ["0"])[0] == "1"
             collections, error = get_collections(force_refresh=force)
             self._send_json({"collections": collections, "error": error, "computed_at": _collections_cache["computed_at"]})
+            return
+
+        if path == "/api/deals/reconciliation":
+            force = parse_qs(parsed.query).get("refresh", ["0"])[0] == "1"
+            recon, error = get_deal_reconciliation(force_refresh=force)
+            self._send_json({"reconciliation": recon, "error": error, "computed_at": _deal_recon_cache["computed_at"]})
             return
 
         if path.startswith("/api/deals/") and path.endswith("/pdf"):

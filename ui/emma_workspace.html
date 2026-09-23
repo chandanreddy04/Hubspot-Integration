@@ -928,6 +928,23 @@ select.f,input.f{padding:6px 10px;border:1px solid var(--border);border-radius:6
         <div class="recon-trend-wrap" id="reconTrend"></div>
       </div>
 
+      <!-- Real deal payment status -- reconciles our own real deals/invoices
+           against real QuickBooks data by customer name (no write access to
+           QBO -- a real match only exists once a matching QBO customer +
+           invoice is created, by a human, in QuickBooks itself). -->
+      <div class="section" id="dealReconSection" style="display:none">
+        <div class="sh">
+          <h3>Deal payment status</h3>
+          <span class="desc">· Real HubSpot deals reconciled against real QuickBooks invoices</span>
+        </div>
+        <div class="body padless">
+          <table class="t">
+            <thead><tr><th>Customer</th><th class="num">Deal amount</th><th>QuickBooks status</th><th>QB invoice</th><th class="num">QB balance</th></tr></thead>
+            <tbody id="dealReconBody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Cash application subtabs -->
       <div class="section">
         <div class="sh">
@@ -5089,9 +5106,53 @@ async function loadRealCollections(refresh){
   }
 }
 
+function renderDealReconciliation(rows){
+  const section = document.getElementById('dealReconSection');
+  const tbody = document.getElementById('dealReconBody');
+  if(!section || !tbody) return;
+  if(!rows || !rows.length){ section.style.display = 'none'; return; }
+  section.style.display = '';
+  const statusPill = s => {
+    if(s==='paid') return '<span class="pill green dot">Fully paid</span>';
+    if(s==='partial') return '<span class="pill amber dot">Partially paid</span>';
+    if(s==='unpaid') return '<span class="pill red dot">Unpaid</span>';
+    return '<span class="pill slate dot">Not yet invoiced in QuickBooks</span>';
+  };
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${esc(r.c)} <span class="pill green dot" style="font-size:9px;margin-left:4px">Live</span></td>
+      <td class="num">${money(r.amt)}</td>
+      <td>${statusPill(r.status)}</td>
+      <td class="mono">${r.qboDocNumber ? esc(r.qboDocNumber) : '—'}</td>
+      <td class="num">${r.qboBalance!=null ? money(r.qboBalance) : '—'}</td>
+    </tr>`).join('');
+}
+
+async function loadRealDealReconciliation(refresh){
+  try{
+    const res = await fetch('/api/deals/reconciliation' + (refresh ? '?refresh=1' : ''));
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const payload = await res.json();
+    const rows = payload.reconciliation || [];
+    if(payload.error && !rows.length){
+      toast('warn', 'Live deal reconciliation unavailable: ' + payload.error);
+      return;
+    }
+    renderDealReconciliation(rows);
+    if(rows.length){
+      const matchedCount = rows.filter(r=>r.status!=='not_invoiced').length;
+      const staleNote = payload.error ? ' (showing last successful pull, refresh failed)' : '';
+      toast(payload.error ? 'warn' : 'success', rows.length + ' real deal(s) checked against QuickBooks, ' + matchedCount + ' matched' + staleNote);
+    }
+  }catch(e){
+    toast('warn', 'Could not reach the live deal reconciliation API — is server.py running? (' + e.message + ')');
+  }
+}
+
 loadRealDeals(false);
 loadRealCash(false);
 loadRealCollections(false);
+loadRealDealReconciliation(false);
 </script>
 
 <!-- ================== ASK EMMA CHAT ================== -->
