@@ -67,6 +67,37 @@ def _dunning_stage(days_overdue: int) -> str:
     return "Reminder"
 
 
+# Phase 4 automated-reminder cadence, per the manager's brief: first
+# reminder at 10 days overdue, a second/final one at 15. Independent of
+# _DUNNING_STAGES above (that's the longer-run kanban bucket an overdue
+# invoice visually sits in; this is specifically what gates an automated
+# send). Each invoice gets at most one email per stage, ever -- tracked in
+# reminder_state.json, not recomputed from days-overdue alone, so a stage
+# already sent never gets re-sent just because the cycle runs again.
+_REMINDER_THRESHOLDS = [(15, "second"), (10, "first")]
+
+
+def _reminder_stage(days_overdue: int) -> str | None:
+    for threshold, stage in _REMINDER_THRESHOLDS:
+        if days_overdue >= threshold:
+            return stage
+    return None
+
+
+_REMINDER_STATE_PATH = UI_DIR / "reminder_state.json"
+
+
+def _load_reminder_state() -> dict:
+    try:
+        return json.loads(_REMINDER_STATE_PATH.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _save_reminder_state(state: dict) -> None:
+    _REMINDER_STATE_PATH.write_text(json.dumps(state, indent=2))
+
+
 def _prio_for(amount: float) -> str:
     if amount >= 50_000:
         return "high"
@@ -431,10 +462,16 @@ def compute_collections() -> list[dict]:
     Nothing here is ever sent automatically -- this only computes the list
     and the draft text. An explicit POST to /api/collections/<id>/send,
     itself only ever triggered by a person clicking Send in the UI, is
-    what actually calls the Gmail client.
+    what actually calls the Gmail client. (run_reminder_cycle() is the one
+    exception -- also only ever reached via an explicit person-triggered
+    POST, just a batch one instead of a per-row Send click.)
 
     An invoice with no BillEmail on file gets email=None -- shown as an
     honest gap in the UI, never a guessed or fabricated address.
+
+    Scoped to customers that match a real HubSpot deal, same as
+    compute_cash() -- otherwise QBO's own unrelated sample invoices would
+    show up as "overdue" here too.
     """
     from datetime import date
 
@@ -444,8 +481,13 @@ def compute_collections() -> list[dict]:
     if settings.qbo_mode != "live":
         raise RuntimeError("QBO_MODE is not 'live' -- set it in .env to fetch real collections data")
 
+    deals, _ = get_deals()
+    real_customer_keys = {_normalize_customer_name(d.get("c", "")) for d in deals if d.get("real")}
+    real_customer_keys.discard("")
+
     client = QboClient(settings)
-    invoices = client.list_invoices(limit=50)
+    all_invoices = client.list_invoices(limit=50)
+    invoices = [i for i in all_invoices if _normalize_customer_name(i.get("CustomerRef", {}).get("name", "")) in real_customer_keys]
     today = date.today()
 
     out = []
@@ -522,6 +564,84 @@ def get_collections(force_refresh: bool = False) -> tuple[list[dict], str | None
                 _collections_cache["collections"] = []
         _collections_cache["computed_at"] = time.time()
     return _collections_cache["collections"], _collections_cache["error"]
+
+
+def compute_due_reminders(collections: list[dict], state: dict) -> list[dict]:
+    """Which real collections rows need an automated reminder sent right
+    now: real invoice, past the 10 or 15-day threshold, and that specific
+    stage hasn't already been recorded as sent in reminder_state.json.
+
+    A stage-specific subject/body is built here rather than reusing the
+    row's own draftSubject/draftBody as-is, so the second/final reminder
+    actually reads more urgent than the first -- otherwise both stages
+    would send an identical-sounding email just a few days apart.
+    """
+    due = []
+    for row in collections:
+        if not row.get("real"):
+            continue
+        stage = _reminder_stage(row["dpd"])
+        if not stage:
+            continue
+        if state.get(row["id"], {}).get(stage):
+            continue  # this stage already sent for this invoice -- never resend it
+        if stage == "second":
+            subject = f"FINAL NOTICE: Invoice #{row['inv']} — {row['dpd']} days overdue"
+            body = (
+                f"Hi {row['c']},\n\n"
+                f"This is a final reminder that Invoice #{row['inv']} for ${row['amt']:,.2f} was due on "
+                f"{row['dueDate']} and remains unpaid ({row['dpd']} days overdue). A first reminder was "
+                "already sent.\n\n"
+                "Please remit payment immediately to avoid further collections action. If you've already "
+                "sent payment, please disregard this message.\n\n"
+                "Thank you,\nRally, Inc."
+            )
+        else:
+            subject, body = row["draftSubject"], row["draftBody"]
+        due.append({**row, "reminderStage": stage, "subject": subject, "body": body})
+    return due
+
+
+def run_reminder_cycle() -> dict:
+    """Phase 4: one explicit, person-triggered action that sends every real
+    reminder currently due (10/15-day cadence) in a single batch, instead of
+    a person clicking Send on each one individually. Only ever reached via
+    an explicit POST from the UI's own "Run reminder cycle" button -- there
+    is still no background scheduler anywhere in this codebase.
+
+    reminder_state.json is the only thing that has to survive a restart for
+    this to be safe -- without it, a restart would forget a stage was
+    already sent and could email the same customer twice.
+    """
+    settings = load_settings()
+    if settings.gmail_mode != "live":
+        raise RuntimeError("GMAIL_MODE is not 'live' -- set it in .env to send real reminder email")
+
+    collections, coll_error = get_collections()
+    state = _load_reminder_state()
+    due = compute_due_reminders(collections, state)
+
+    from integrations.gmail import GmailClient
+
+    client = GmailClient(settings)
+    sent, failed, skipped = [], [], []
+    for row in due:
+        to = (row.get("email") or "").strip()
+        if not to:
+            skipped.append({"id": row["id"], "c": row["c"], "reason": "no billing email on file"})
+            continue
+        try:
+            message_id = client.send_email(to, row["subject"], row["body"])
+        except Exception as exc:
+            failed.append({"id": row["id"], "c": row["c"], "reason": str(exc)})
+            continue
+        state.setdefault(row["id"], {})[row["reminderStage"]] = datetime.now().isoformat()
+        sent.append({"id": row["id"], "c": row["c"], "stage": row["reminderStage"], "to": to, "messageId": message_id})
+
+    if sent:
+        _save_reminder_state(state)
+
+    return {"checked": len(collections), "due": len(due), "sent": sent, "failed": failed, "skipped": skipped, "collectionsError": coll_error}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -779,6 +899,15 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/invoices/send":
             self._send_invoice_email(self._read_json_body())
+            return
+
+        if path == "/api/collections/reminders/run":
+            try:
+                result = run_reminder_cycle()
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)})
+                return
+            self._send_json({"ok": True, **result})
             return
 
         self.send_response(404)

@@ -973,7 +973,10 @@ select.f,input.f{padding:6px 10px;border:1px solid var(--border);border-radius:6
         <div class="kpi"><div class="l">Disputes paused</div><div class="v" id="collKpiPaused">—</div><div class="meta" id="collKpiPausedMeta">—</div></div>
       </div>
       <div class="section">
-        <div class="sh"><h3>Collections queue · dunning stages</h3></div>
+        <div class="sh">
+          <h3>Collections queue · dunning stages</h3>
+          <div class="right"><button class="csv-btn" id="runReminderCycleBtn" onclick="runReminderCycle()">Run reminder cycle</button></div>
+        </div>
         <div class="body">
           <div class="kanban" id="kanban-collections"></div>
         </div>
@@ -5108,6 +5111,38 @@ async function loadRealCollections(refresh){
     }
   }catch(e){
     toast('warn', 'Could not reach the live collections API — is server.py running? (' + e.message + ')');
+  }
+}
+
+// Phase 4: one explicit click sends every real reminder currently due
+// (10/15-day cadence) in one batch -- calls POST /api/collections/reminders/run,
+// which is the only place that ever auto-sends real email without a
+// per-row Send click, and only because this button is that person's own
+// explicit trigger for the whole batch.
+async function runReminderCycle(){
+  const btn = document.getElementById('runReminderCycleBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Running…'; }
+  try{
+    const res = await fetch('/api/collections/reminders/run', {method:'POST'});
+    const payload = await res.json();
+    if(!res.ok || !payload.ok){
+      toast('warn', 'Reminder cycle failed: ' + (payload.error || ('HTTP ' + res.status)));
+      return;
+    }
+    const {checked, due, sent, failed, skipped} = payload;
+    if(!due){
+      toast('success', 'Reminder cycle ran · checked ' + checked + ' real overdue invoice(s) · none due yet (10/15-day cadence)');
+    } else {
+      const parts = [sent.length + ' sent'];
+      if(failed.length) parts.push(failed.length + ' failed');
+      if(skipped.length) parts.push(skipped.length + ' skipped (no email on file)');
+      toast(failed.length ? 'warn' : 'success', 'Reminder cycle · ' + parts.join(', ') + ' of ' + due + ' due');
+    }
+    await loadRealCollections(true);
+  }catch(e){
+    toast('warn', 'Could not reach the reminder cycle API — is server.py running? (' + e.message + ')');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Run reminder cycle'; }
   }
 }
 
