@@ -945,8 +945,12 @@ select.f,input.f{padding:6px 10px;border:1px solid var(--border);border-radius:6
         </div>
       </div>
 
-      <!-- Cash application subtabs -->
-      <div class="section">
+      <!-- Cash application subtabs -- hidden per user request (kept in the
+           DOM, not removed: renderCash()/loadRealCash() reference
+           #cash-tabs/#cash-body unconditionally, and the Daily
+           reconciliation tiles above still read the same CASH_MATCHED/
+           CASH_UNMATCHED/CASH_PARTIAL arrays this section's load populates). -->
+      <div class="section" style="display:none">
         <div class="sh">
           <h3>Cash application</h3>
           <span class="desc">· QB payments reconciled to invoices</span>
