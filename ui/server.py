@@ -67,14 +67,17 @@ def _dunning_stage(days_overdue: int) -> str:
     return "Reminder"
 
 
-# Phase 4 automated-reminder cadence, per the manager's brief: first
-# reminder at 10 days overdue, a second/final one at 15. Independent of
-# _DUNNING_STAGES above (that's the longer-run kanban bucket an overdue
-# invoice visually sits in; this is specifically what gates an automated
-# send). Each invoice gets at most one email per stage, ever -- tracked in
+# Phase 4 automated-reminder cadence, per the user's revised brief: one
+# reminder 7 days before the deadline, one on the deadline itself, one 14
+# days after. Independent of _DUNNING_STAGES above (that's the longer-run
+# kanban bucket an overdue invoice visually sits in; this is specifically
+# what gates an automated send). days_overdue is signed here -- negative
+# means "days until due," 0 is due-today, positive is overdue -- so each
+# threshold is checked highest-first the same way _dunning_stage() is.
+# Each invoice gets at most one email per stage, ever -- tracked in
 # reminder_state.json, not recomputed from days-overdue alone, so a stage
 # already sent never gets re-sent just because the cycle runs again.
-_REMINDER_THRESHOLDS = [(15, "second"), (10, "first")]
+_REMINDER_THRESHOLDS = [(14, "final"), (0, "due_today"), (-7, "pre_due")]
 
 
 def _reminder_stage(days_overdue: int) -> str | None:
@@ -472,6 +475,11 @@ def compute_collections() -> list[dict]:
     Scoped to customers that match a real HubSpot deal, same as
     compute_cash() -- otherwise QBO's own unrelated sample invoices would
     show up as "overdue" here too.
+
+    Window covers -7 (7 days before the deadline) through however far
+    overdue an invoice actually is, matching the 3-stage reminder cadence
+    in _reminder_stage() -- "dpd" (days overdue) is signed: negative means
+    still upcoming, 0 is due today, positive is overdue.
     """
     from datetime import date
 
@@ -503,23 +511,45 @@ def compute_collections() -> list[dict]:
         except ValueError:
             continue
         days_overdue = (today - due_date).days
-        if days_overdue < 1:
-            continue  # due today or in the future -- not overdue yet
+        if days_overdue < -7:
+            continue  # more than 7 days before the deadline -- not due for a reminder yet
 
-        stage = _dunning_stage(days_overdue)
+        stage = _dunning_stage(max(days_overdue, 0))
         customer = inv.get("CustomerRef", {}).get("name") or "—"
         docnum = inv.get("DocNumber", "—")
         email = (inv.get("BillEmail") or {}).get("Address")
 
-        subject = f"Payment reminder: Invoice #{docnum} — {days_overdue} days overdue"
-        body = (
-            f"Hi {customer},\n\n"
-            f"This is a reminder that Invoice #{docnum} for ${balance:,.2f} was due on "
-            f"{due_date.isoformat()} and remains unpaid ({days_overdue} days overdue).\n\n"
-            "Please remit payment at your earliest convenience. If you've already sent "
-            "payment, please disregard this message.\n\n"
-            "Thank you,\nRally, Inc."
-        )
+        if days_overdue < 0:
+            days_until = -days_overdue
+            subject = f"Upcoming invoice due soon: #{docnum} — due in {days_until} day{'s' if days_until != 1 else ''}"
+            body = (
+                f"Hi {customer},\n\n"
+                f"This is a heads-up that Invoice #{docnum} for ${balance:,.2f} is due on "
+                f"{due_date.isoformat()} ({days_until} day{'s' if days_until != 1 else ''} from now).\n\n"
+                "No action needed if payment is already scheduled. Please reach out if you have "
+                "any questions.\n\n"
+                "Thank you,\nRally, Inc."
+            )
+        elif days_overdue == 0:
+            subject = f"Invoice due today: #{docnum}"
+            body = (
+                f"Hi {customer},\n\n"
+                f"This is a reminder that Invoice #{docnum} for ${balance:,.2f} is due today, "
+                f"{due_date.isoformat()}.\n\n"
+                "Please remit payment at your earliest convenience. If you've already sent "
+                "payment, please disregard this message.\n\n"
+                "Thank you,\nRally, Inc."
+            )
+        else:
+            subject = f"Payment reminder: Invoice #{docnum} — {days_overdue} days overdue"
+            body = (
+                f"Hi {customer},\n\n"
+                f"This is a reminder that Invoice #{docnum} for ${balance:,.2f} was due on "
+                f"{due_date.isoformat()} and remains unpaid ({days_overdue} days overdue).\n\n"
+                "Please remit payment at your earliest convenience. If you've already sent "
+                "payment, please disregard this message.\n\n"
+                "Thank you,\nRally, Inc."
+            )
 
         out.append({
             "id": f"COLL-{inv.get('Id')}",
@@ -568,13 +598,16 @@ def get_collections(force_refresh: bool = False) -> tuple[list[dict], str | None
 
 def compute_due_reminders(collections: list[dict], state: dict) -> list[dict]:
     """Which real collections rows need an automated reminder sent right
-    now: real invoice, past the 10 or 15-day threshold, and that specific
-    stage hasn't already been recorded as sent in reminder_state.json.
+    now: real invoice, at one of the 3 cadence checkpoints (7 days before
+    the deadline, the day of the deadline, or 14 days after), and that
+    specific stage hasn't already been recorded as sent in
+    reminder_state.json.
 
-    A stage-specific subject/body is built here rather than reusing the
-    row's own draftSubject/draftBody as-is, so the second/final reminder
-    actually reads more urgent than the first -- otherwise both stages
-    would send an identical-sounding email just a few days apart.
+    "final" (14 days after) gets an escalated subject/body built here
+    rather than reusing the row's own draftSubject/draftBody as-is, so it
+    reads more urgent than the pre_due/due_today stages. Those two reuse
+    compute_collections()'s own draft as-is -- it's already worded
+    correctly for "upcoming" vs "due today" there.
     """
     due = []
     for row in collections:
@@ -585,12 +618,12 @@ def compute_due_reminders(collections: list[dict], state: dict) -> list[dict]:
             continue
         if state.get(row["id"], {}).get(stage):
             continue  # this stage already sent for this invoice -- never resend it
-        if stage == "second":
+        if stage == "final":
             subject = f"FINAL NOTICE: Invoice #{row['inv']} — {row['dpd']} days overdue"
             body = (
                 f"Hi {row['c']},\n\n"
                 f"This is a final reminder that Invoice #{row['inv']} for ${row['amt']:,.2f} was due on "
-                f"{row['dueDate']} and remains unpaid ({row['dpd']} days overdue). A first reminder was "
+                f"{row['dueDate']} and remains unpaid ({row['dpd']} days overdue). Earlier reminders were "
                 "already sent.\n\n"
                 "Please remit payment immediately to avoid further collections action. If you've already "
                 "sent payment, please disregard this message.\n\n"
@@ -604,10 +637,11 @@ def compute_due_reminders(collections: list[dict], state: dict) -> list[dict]:
 
 def run_reminder_cycle() -> dict:
     """Phase 4: one explicit, person-triggered action that sends every real
-    reminder currently due (10/15-day cadence) in a single batch, instead of
-    a person clicking Send on each one individually. Only ever reached via
-    an explicit POST from the UI's own "Run reminder cycle" button -- there
-    is still no background scheduler anywhere in this codebase.
+    reminder currently due (7 days before deadline / day of deadline / 14
+    days after) in a single batch, instead of a person clicking Send on
+    each one individually. Only ever reached via an explicit POST from the
+    UI's own "Run reminder cycle" button -- there is still no background
+    scheduler anywhere in this codebase.
 
     reminder_state.json is the only thing that has to survive a restart for
     this to be safe -- without it, a restart would forget a stage was

@@ -2502,7 +2502,7 @@ function _updateCollectionsKpis(source){
   const paused = source.filter(c=>c.paused);
 
   totalEl.textContent = _moneyAbbrev(total);
-  totalMetaEl.textContent = source.length + ' invoice' + (source.length===1?'':'s') + ' past due';
+  totalMetaEl.textContent = source.length + ' invoice' + (source.length===1?'':'s') + ' in the reminder window';
   avgEl.textContent = avgDpd;
   avgMetaEl.textContent = over45 + ' over 45 days';
   pausedEl.textContent = paused.length;
@@ -5115,10 +5115,11 @@ async function loadRealCollections(refresh){
 }
 
 // Phase 4: one explicit click sends every real reminder currently due
-// (10/15-day cadence) in one batch -- calls POST /api/collections/reminders/run,
-// which is the only place that ever auto-sends real email without a
-// per-row Send click, and only because this button is that person's own
-// explicit trigger for the whole batch.
+// (7 days before deadline / day of deadline / 14 days after) in one batch
+// -- calls POST /api/collections/reminders/run, which is the only place
+// that ever auto-sends real email without a per-row Send click, and only
+// because this button is that person's own explicit trigger for the
+// whole batch.
 async function runReminderCycle(){
   const btn = document.getElementById('runReminderCycleBtn');
   if(btn){ btn.disabled = true; btn.textContent = 'Running…'; }
@@ -5131,7 +5132,7 @@ async function runReminderCycle(){
     }
     const {checked, due, sent, failed, skipped} = payload;
     if(!due){
-      toast('success', 'Reminder cycle ran · checked ' + checked + ' real overdue invoice(s) · none due yet (10/15-day cadence)');
+      toast('success', 'Reminder cycle ran · checked ' + checked + ' real invoice(s) in the -7/0/+14 day window · none due yet');
     } else {
       const parts = [sent.length + ' sent'];
       if(failed.length) parts.push(failed.length + ' failed');
