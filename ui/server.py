@@ -8,9 +8,12 @@ invoice delivery (PDF + email). Approvals, Incidents, and Audit are still
 the existing mock data in emma_workspace.html; those workflows don't
 exist yet.
 
-Real deals/cash/collections are computed once and cached in memory (API
-calls aren't free and this project has already hit real rate limits
-calling too often) -- hit /api/deals?refresh=1 (etc.) to force a recompute.
+Real deals/cash/collections are computed once and cached both in memory
+and in rally_state.db (SQLite, gitignored, created next to this project's
+root on first run) -- API calls aren't free and this project has already
+hit real rate limits calling too often, and used to re-pay that cost on
+every restart since nothing survived the process exiting. Hit
+/api/deals?refresh=1 (etc.) to force a recompute.
 
 Usage:
     python server.py [port]        # default port 8600
@@ -20,6 +23,7 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
 import sys
 import time
 from datetime import datetime
@@ -44,6 +48,53 @@ _cash_cache: dict = {"cash": None, "computed_at": 0.0, "error": None}
 _collections_cache: dict = {"collections": None, "computed_at": 0.0, "error": None}
 _deal_recon_cache: dict = {"data": None, "computed_at": 0.0, "error": None}
 _CACHE_TTL_SECONDS = 300  # re-fetch at most every 5 minutes even without ?refresh=1
+
+# SQLite instead of the in-memory-only caches above going stale on every
+# restart -- a restart used to always force a full re-extraction of every
+# real deal through Groq (the exact rate-limit storm that's hit this
+# project more than once), because nothing survived the process exiting.
+# One tiny key/value table is enough: each cache's whole snapshot (the
+# same shape it already holds in memory) is stored as one JSON blob under
+# its own key, alongside the same computed_at/error the in-memory dict
+# already tracks. This is a "latest known state" store, not a history
+# log -- each write replaces the previous one for that key, on purpose.
+_DB_PATH = ROOT / "rally_state.db"
+
+
+def _db() -> sqlite3.Connection:
+    conn = sqlite3.connect(_DB_PATH)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS cache_store ("
+        "key TEXT PRIMARY KEY, data TEXT, computed_at REAL, error TEXT)"
+    )
+    return conn
+
+
+def _db_load(key: str) -> tuple[object | None, float, str | None]:
+    conn = _db()
+    try:
+        row = conn.execute(
+            "SELECT data, computed_at, error FROM cache_store WHERE key = ?", (key,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None, 0.0, None
+    data_json, computed_at, error = row
+    return (json.loads(data_json) if data_json is not None else None), computed_at, error
+
+
+def _db_save(key: str, data: object, computed_at: float, error: str | None) -> None:
+    conn = _db()
+    try:
+        conn.execute(
+            "INSERT INTO cache_store (key, data, computed_at, error) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET data=excluded.data, computed_at=excluded.computed_at, error=excluded.error",
+            (key, json.dumps(data), computed_at, error),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 # Design-doc dunning cadence (Section 10), each threshold the minimum
 # days-overdue for that stage -- checked highest-first so an invoice lands
@@ -87,18 +138,26 @@ def _reminder_stage(days_overdue: int) -> str | None:
     return None
 
 
-_REMINDER_STATE_PATH = UI_DIR / "reminder_state.json"
+# Legacy path from before reminder state moved into rally_state.db --
+# only read once, to migrate any real sent-reminder history forward
+# instead of silently losing it.
+_LEGACY_REMINDER_STATE_PATH = UI_DIR / "reminder_state.json"
 
 
 def _load_reminder_state() -> dict:
+    data, _, _ = _db_load("reminder_state")
+    if data is not None:
+        return data
     try:
-        return json.loads(_REMINDER_STATE_PATH.read_text())
+        legacy = json.loads(_LEGACY_REMINDER_STATE_PATH.read_text())
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
+    _save_reminder_state(legacy)  # migrate once, so this branch is never hit again
+    return legacy
 
 
 def _save_reminder_state(state: dict) -> None:
-    _REMINDER_STATE_PATH.write_text(json.dumps(state, indent=2))
+    _db_save("reminder_state", state, time.time(), None)
 
 
 def _prio_for(amount: float) -> str:
@@ -255,6 +314,15 @@ def compute_deals() -> tuple[list[dict], list[tuple[str, str]]]:
 
 
 def get_deals(force_refresh: bool = False) -> tuple[list[dict], str | None]:
+    # Cold in-memory cache (e.g. right after a restart) -- try the durable
+    # snapshot from SQLite before deciding a live recompute is needed, so a
+    # restart doesn't force a full Groq re-extraction of every deal just
+    # because the process is new.
+    if _cache["deals"] is None and not force_refresh:
+        data, computed_at, error = _db_load("deals")
+        if data is not None:
+            _cache["deals"], _cache["computed_at"], _cache["error"] = data, computed_at, error
+
     stale = time.time() - _cache["computed_at"] > _CACHE_TTL_SECONDS
     if force_refresh or _cache["deals"] is None or stale:
         try:
@@ -271,6 +339,7 @@ def get_deals(force_refresh: bool = False) -> tuple[list[dict], str | None]:
             if _cache["deals"] is None:
                 _cache["deals"] = []
         _cache["computed_at"] = time.time()
+        _db_save("deals", _cache["deals"], _cache["computed_at"], _cache["error"])
     return _cache["deals"], _cache["error"]
 
 
@@ -353,6 +422,11 @@ def compute_cash() -> dict:
 
 
 def get_cash(force_refresh: bool = False) -> tuple[dict | None, str | None]:
+    if _cash_cache["cash"] is None and not force_refresh:
+        data, computed_at, error = _db_load("cash")
+        if data is not None:
+            _cash_cache["cash"], _cash_cache["computed_at"], _cash_cache["error"] = data, computed_at, error
+
     stale = time.time() - _cash_cache["computed_at"] > _CACHE_TTL_SECONDS
     if force_refresh or _cash_cache["cash"] is None or stale:
         try:
@@ -363,6 +437,7 @@ def get_cash(force_refresh: bool = False) -> tuple[dict | None, str | None]:
             if _cash_cache["cash"] is None:
                 _cash_cache["cash"] = {"matched": [], "unmatched": [], "partial": []}
         _cash_cache["computed_at"] = time.time()
+        _db_save("cash", _cash_cache["cash"], _cash_cache["computed_at"], _cash_cache["error"])
     return _cash_cache["cash"], _cash_cache["error"]
 
 
@@ -445,6 +520,11 @@ def compute_deal_reconciliation() -> list[dict]:
 
 
 def get_deal_reconciliation(force_refresh: bool = False) -> tuple[list[dict], str | None]:
+    if _deal_recon_cache["data"] is None and not force_refresh:
+        data, computed_at, error = _db_load("deal_reconciliation")
+        if data is not None:
+            _deal_recon_cache["data"], _deal_recon_cache["computed_at"], _deal_recon_cache["error"] = data, computed_at, error
+
     stale = time.time() - _deal_recon_cache["computed_at"] > _CACHE_TTL_SECONDS
     if force_refresh or _deal_recon_cache["data"] is None or stale:
         try:
@@ -455,6 +535,7 @@ def get_deal_reconciliation(force_refresh: bool = False) -> tuple[list[dict], st
             if _deal_recon_cache["data"] is None:
                 _deal_recon_cache["data"] = []
         _deal_recon_cache["computed_at"] = time.time()
+        _db_save("deal_reconciliation", _deal_recon_cache["data"], _deal_recon_cache["computed_at"], _deal_recon_cache["error"])
     return _deal_recon_cache["data"], _deal_recon_cache["error"]
 
 
@@ -572,6 +653,15 @@ def compute_collections() -> list[dict]:
 
 
 def get_collections(force_refresh: bool = False) -> tuple[list[dict], str | None]:
+    # Loading the durable snapshot first (when cold) means the sent/sentAt
+    # preservation below also survives a restart, not just a same-process
+    # recompute -- a restart used to forget which emails had already gone
+    # out, risking a real duplicate send.
+    if _collections_cache["collections"] is None and not force_refresh:
+        data, computed_at, error = _db_load("collections")
+        if data is not None:
+            _collections_cache["collections"], _collections_cache["computed_at"], _collections_cache["error"] = data, computed_at, error
+
     stale = time.time() - _collections_cache["computed_at"] > _CACHE_TTL_SECONDS
     if force_refresh or _collections_cache["collections"] is None or stale:
         try:
@@ -593,6 +683,7 @@ def get_collections(force_refresh: bool = False) -> tuple[list[dict], str | None
             if _collections_cache["collections"] is None:
                 _collections_cache["collections"] = []
         _collections_cache["computed_at"] = time.time()
+        _db_save("collections", _collections_cache["collections"], _collections_cache["computed_at"], _collections_cache["error"])
     return _collections_cache["collections"], _collections_cache["error"]
 
 
