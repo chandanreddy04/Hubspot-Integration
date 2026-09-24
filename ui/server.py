@@ -267,7 +267,7 @@ def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int
     }
 
 
-def compute_deals() -> tuple[list[dict], list[tuple[str, str]]]:
+def compute_deals() -> tuple[list[dict], list[tuple[str, str, str]]]:
     from integrations.hubspot import HubSpotClient, NoAgreementFound
     import pdfplumber
     import io
@@ -278,7 +278,7 @@ def compute_deals() -> tuple[list[dict], list[tuple[str, str]]]:
 
     client = HubSpotClient(settings.hubspot_token)
     out = []
-    skipped: list[tuple[str, str]] = []
+    skipped: list[tuple[str, str, str]] = []  # (deal_id, deal_name, error)
     for deal in client.list_closed_deals(limit=10):
         if not deal.agreement_ref:
             continue
@@ -296,8 +296,10 @@ def compute_deals() -> tuple[list[dict], list[tuple[str, str]]]:
             # One deal hitting a rate limit (or any other extraction
             # failure) shouldn't discard every other deal that already
             # succeeded -- skip it and keep going. get_deals() surfaces
-            # this in the error field so it's never silently swallowed.
-            skipped.append((deal.deal_name, str(exc)))
+            # this in the error field so it's never silently swallowed,
+            # and falls back to this deal's last known-good extraction
+            # (deal_id is what lets it find that prior entry).
+            skipped.append((deal.deal_id, deal.deal_name, str(exc)))
             continue
 
         try:
@@ -325,14 +327,30 @@ def get_deals(force_refresh: bool = False) -> tuple[list[dict], str | None]:
 
     stale = time.time() - _cache["computed_at"] > _CACHE_TTL_SECONDS
     if force_refresh or _cache["deals"] is None or stale:
+        prior_by_id = {d["id"]: d for d in (_cache["deals"] or [])}
         try:
             deals, skipped = compute_deals()
+            # A deal whose extraction fails THIS round shouldn't vanish if
+            # we already have a good extraction for it from before -- that
+            # used to cascade into Cash Application/Collections silently
+            # excluding that deal's real invoice too, since those are
+            # scoped to "customers with a currently-real deal". Recover the
+            # last known-good entry for it instead of just dropping it.
+            recovered_ids = set()
+            for deal_id, name, err in skipped:
+                old = prior_by_id.get(deal_id)
+                if old:
+                    deals.append(old)
+                    recovered_ids.add(deal_id)
             _cache["deals"] = deals
             # A per-deal failure (e.g. one deal hit a rate limit) doesn't
             # invalidate the ones that succeeded -- surface it as an
             # honest, non-fatal note instead of discarding everything.
             _cache["error"] = (
-                "; ".join(f"{name}: {err}" for name, err in skipped) if skipped else None
+                "; ".join(
+                    f"{name}: {err}" + (" (kept last known-good extraction)" if deal_id in recovered_ids else "")
+                    for deal_id, name, err in skipped
+                ) if skipped else None
             )
         except Exception as exc:
             _cache["error"] = str(exc)
