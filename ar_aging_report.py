@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Standalone AR aging report -- run on demand, no server, no scheduler.
 
-Per the manager's guidance: full automation (something that runs this
+Per the current guidance: full automation (something that runs this
 itself on a schedule and sends reminders) is deferred until the app is
 actually deployed online. For now, this is something a person runs
 directly -- `python ar_aging_report.py` -- and every run fetches the

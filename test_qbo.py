@@ -3,8 +3,7 @@
 
 Doesn't assume what data is in there — just connects and shows what's
 actually present, since the sandbox comes pre-loaded with sample invoices
-and payments (per the manager's note) rather than starting empty like the
-HubSpot test account did.
+and payments rather than starting empty like the HubSpot test account did.
 
 Usage:
     python test_qbo.py
