@@ -15,6 +15,15 @@ querying QuickBooks a third, separate way.
 Usage:
     python ar_aging_report.py            # human-readable report
     python ar_aging_report.py --json     # machine-readable, for piping elsewhere
+    python ar_aging_report.py --send     # also sends a real reminder email per invoice over
+                                          # config.overdue_threshold_days (needs GMAIL_MODE=live)
+
+--send reuses the existing send_outstanding_reminders() (same one the
+Collections page's outstanding-invoices batch already calls) rather than
+re-implementing sending here -- one source of truth for what an actual
+send does (override-address redirect, draft text, dedup-free single-run
+semantics). This report's own aging buckets are unrelated and unaffected
+by the threshold --send uses.
 """
 
 from __future__ import annotations
@@ -27,7 +36,8 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT / "ui"))
 
-from server import _real_outstanding_invoices  # noqa: E402  (path setup must run first)
+from server import _real_outstanding_invoices, send_outstanding_reminders  # noqa: E402  (path setup must run first)
+from config import load_settings  # noqa: E402
 
 # Standard AR aging buckets. "Current" covers anything not yet past due
 # (dpd <= 0), including invoices due days or months from now -- an aging
@@ -87,6 +97,29 @@ def _print_report(report: dict) -> None:
     print(f"Grand total outstanding: ${report['grandTotal']:,.2f}")
 
 
+def _send_reminders() -> None:
+    settings = load_settings()
+    if settings.gmail_mode != "live":
+        print("\nGMAIL_MODE is not 'live' in .env -- can't send email. Skipping --send.", file=sys.stderr)
+        sys.exit(1)
+
+    override = settings.outstanding_reminder_override_email
+    print(f"\nSending reminders for invoices over {settings.overdue_threshold_days} day(s) overdue...")
+    print(f"Recipient override: {override or '(none -- sending to real QuickBooks billing emails)'}")
+
+    try:
+        result = send_outstanding_reminders()
+    except Exception as exc:
+        print(f"Could not send reminders: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    for row in result["sent"]:
+        print(f"  sent   -> {row['c']}  (to {row['to']}, message {row['messageId']})")
+    for row in result["failed"]:
+        print(f"  FAILED -> {row['c']}: {row['reason']}")
+    print(f"\n{len(result['sent'])} sent, {len(result['failed'])} failed, out of {result['checked']} checked.")
+
+
 def main() -> None:
     try:
         report = compute_aging_report()
@@ -98,6 +131,9 @@ def main() -> None:
         print(json.dumps(report, indent=2))
     else:
         _print_report(report)
+
+    if "--send" in sys.argv:
+        _send_reminders()
 
 
 if __name__ == "__main__":
