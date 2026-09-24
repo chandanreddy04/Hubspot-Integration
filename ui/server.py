@@ -8,9 +8,12 @@ invoice delivery (PDF + email). Approvals, Incidents, and Audit are still
 the existing mock data in emma_workspace.html; those workflows don't
 exist yet.
 
-Real deals/cash/collections are computed once and cached in memory (API
-calls aren't free and this project has already hit real rate limits
-calling too often) -- hit /api/deals?refresh=1 (etc.) to force a recompute.
+Real deals/cash/collections are computed once and cached both in memory
+and in rally_state.db (SQLite, gitignored, created next to this project's
+root on first run) -- API calls aren't free and this project has already
+hit real rate limits calling too often, and used to re-pay that cost on
+every restart since nothing survived the process exiting. Hit
+/api/deals?refresh=1 (etc.) to force a recompute.
 
 Usage:
     python server.py [port]        # default port 8600
@@ -20,6 +23,7 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
 import sys
 import time
 from datetime import datetime
@@ -45,6 +49,53 @@ _collections_cache: dict = {"collections": None, "computed_at": 0.0, "error": No
 _deal_recon_cache: dict = {"data": None, "computed_at": 0.0, "error": None}
 _CACHE_TTL_SECONDS = 300  # re-fetch at most every 5 minutes even without ?refresh=1
 
+# SQLite instead of the in-memory-only caches above going stale on every
+# restart -- a restart used to always force a full re-extraction of every
+# real deal through Groq (the exact rate-limit storm that's hit this
+# project more than once), because nothing survived the process exiting.
+# One tiny key/value table is enough: each cache's whole snapshot (the
+# same shape it already holds in memory) is stored as one JSON blob under
+# its own key, alongside the same computed_at/error the in-memory dict
+# already tracks. This is a "latest known state" store, not a history
+# log -- each write replaces the previous one for that key, on purpose.
+_DB_PATH = ROOT / "rally_state.db"
+
+
+def _db() -> sqlite3.Connection:
+    conn = sqlite3.connect(_DB_PATH)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS cache_store ("
+        "key TEXT PRIMARY KEY, data TEXT, computed_at REAL, error TEXT)"
+    )
+    return conn
+
+
+def _db_load(key: str) -> tuple[object | None, float, str | None]:
+    conn = _db()
+    try:
+        row = conn.execute(
+            "SELECT data, computed_at, error FROM cache_store WHERE key = ?", (key,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return None, 0.0, None
+    data_json, computed_at, error = row
+    return (json.loads(data_json) if data_json is not None else None), computed_at, error
+
+
+def _db_save(key: str, data: object, computed_at: float, error: str | None) -> None:
+    conn = _db()
+    try:
+        conn.execute(
+            "INSERT INTO cache_store (key, data, computed_at, error) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET data=excluded.data, computed_at=excluded.computed_at, error=excluded.error",
+            (key, json.dumps(data), computed_at, error),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
 # Design-doc dunning cadence (Section 10), each threshold the minimum
 # days-overdue for that stage -- checked highest-first so an invoice lands
 # in the latest stage it qualifies for. Labels match the UI's existing
@@ -65,6 +116,48 @@ def _dunning_stage(days_overdue: int) -> str:
         if days_overdue >= threshold:
             return label
     return "Reminder"
+
+
+# Phase 4 automated-reminder cadence, per the user's revised brief: one
+# reminder 7 days before the deadline, one on the deadline itself, one 14
+# days after. Independent of _DUNNING_STAGES above (that's the longer-run
+# kanban bucket an overdue invoice visually sits in; this is specifically
+# what gates an automated send). days_overdue is signed here -- negative
+# means "days until due," 0 is due-today, positive is overdue -- so each
+# threshold is checked highest-first the same way _dunning_stage() is.
+# Each invoice gets at most one email per stage, ever -- tracked in
+# reminder_state.json, not recomputed from days-overdue alone, so a stage
+# already sent never gets re-sent just because the cycle runs again.
+_REMINDER_THRESHOLDS = [(14, "final"), (0, "due_today"), (-7, "pre_due")]
+
+
+def _reminder_stage(days_overdue: int) -> str | None:
+    for threshold, stage in _REMINDER_THRESHOLDS:
+        if days_overdue >= threshold:
+            return stage
+    return None
+
+
+# Legacy path from before reminder state moved into rally_state.db --
+# only read once, to migrate any real sent-reminder history forward
+# instead of silently losing it.
+_LEGACY_REMINDER_STATE_PATH = UI_DIR / "reminder_state.json"
+
+
+def _load_reminder_state() -> dict:
+    data, _, _ = _db_load("reminder_state")
+    if data is not None:
+        return data
+    try:
+        legacy = json.loads(_LEGACY_REMINDER_STATE_PATH.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+    _save_reminder_state(legacy)  # migrate once, so this branch is never hit again
+    return legacy
+
+
+def _save_reminder_state(state: dict) -> None:
+    _db_save("reminder_state", state, time.time(), None)
 
 
 def _prio_for(amount: float) -> str:
@@ -174,7 +267,7 @@ def _build_deal(deal, agreement, fields: dict, confidence: dict, page_count: int
     }
 
 
-def compute_deals() -> tuple[list[dict], list[tuple[str, str]]]:
+def compute_deals() -> tuple[list[dict], list[tuple[str, str, str]]]:
     from integrations.hubspot import HubSpotClient, NoAgreementFound
     import pdfplumber
     import io
@@ -185,7 +278,7 @@ def compute_deals() -> tuple[list[dict], list[tuple[str, str]]]:
 
     client = HubSpotClient(settings.hubspot_token)
     out = []
-    skipped: list[tuple[str, str]] = []
+    skipped: list[tuple[str, str, str]] = []  # (deal_id, deal_name, error)
     for deal in client.list_closed_deals(limit=10):
         if not deal.agreement_ref:
             continue
@@ -203,8 +296,10 @@ def compute_deals() -> tuple[list[dict], list[tuple[str, str]]]:
             # One deal hitting a rate limit (or any other extraction
             # failure) shouldn't discard every other deal that already
             # succeeded -- skip it and keep going. get_deals() surfaces
-            # this in the error field so it's never silently swallowed.
-            skipped.append((deal.deal_name, str(exc)))
+            # this in the error field so it's never silently swallowed,
+            # and falls back to this deal's last known-good extraction
+            # (deal_id is what lets it find that prior entry).
+            skipped.append((deal.deal_id, deal.deal_name, str(exc)))
             continue
 
         try:
@@ -221,22 +316,48 @@ def compute_deals() -> tuple[list[dict], list[tuple[str, str]]]:
 
 
 def get_deals(force_refresh: bool = False) -> tuple[list[dict], str | None]:
+    # Cold in-memory cache (e.g. right after a restart) -- try the durable
+    # snapshot from SQLite before deciding a live recompute is needed, so a
+    # restart doesn't force a full Groq re-extraction of every deal just
+    # because the process is new.
+    if _cache["deals"] is None and not force_refresh:
+        data, computed_at, error = _db_load("deals")
+        if data is not None:
+            _cache["deals"], _cache["computed_at"], _cache["error"] = data, computed_at, error
+
     stale = time.time() - _cache["computed_at"] > _CACHE_TTL_SECONDS
     if force_refresh or _cache["deals"] is None or stale:
+        prior_by_id = {d["id"]: d for d in (_cache["deals"] or [])}
         try:
             deals, skipped = compute_deals()
+            # A deal whose extraction fails THIS round shouldn't vanish if
+            # we already have a good extraction for it from before -- that
+            # used to cascade into Cash Application/Collections silently
+            # excluding that deal's real invoice too, since those are
+            # scoped to "customers with a currently-real deal". Recover the
+            # last known-good entry for it instead of just dropping it.
+            recovered_ids = set()
+            for deal_id, name, err in skipped:
+                old = prior_by_id.get(deal_id)
+                if old:
+                    deals.append(old)
+                    recovered_ids.add(deal_id)
             _cache["deals"] = deals
             # A per-deal failure (e.g. one deal hit a rate limit) doesn't
             # invalidate the ones that succeeded -- surface it as an
             # honest, non-fatal note instead of discarding everything.
             _cache["error"] = (
-                "; ".join(f"{name}: {err}" for name, err in skipped) if skipped else None
+                "; ".join(
+                    f"{name}: {err}" + (" (kept last known-good extraction)" if deal_id in recovered_ids else "")
+                    for deal_id, name, err in skipped
+                ) if skipped else None
             )
         except Exception as exc:
             _cache["error"] = str(exc)
             if _cache["deals"] is None:
                 _cache["deals"] = []
         _cache["computed_at"] = time.time()
+        _db_save("deals", _cache["deals"], _cache["computed_at"], _cache["error"])
     return _cache["deals"], _cache["error"]
 
 
@@ -319,6 +440,11 @@ def compute_cash() -> dict:
 
 
 def get_cash(force_refresh: bool = False) -> tuple[dict | None, str | None]:
+    if _cash_cache["cash"] is None and not force_refresh:
+        data, computed_at, error = _db_load("cash")
+        if data is not None:
+            _cash_cache["cash"], _cash_cache["computed_at"], _cash_cache["error"] = data, computed_at, error
+
     stale = time.time() - _cash_cache["computed_at"] > _CACHE_TTL_SECONDS
     if force_refresh or _cash_cache["cash"] is None or stale:
         try:
@@ -329,6 +455,7 @@ def get_cash(force_refresh: bool = False) -> tuple[dict | None, str | None]:
             if _cash_cache["cash"] is None:
                 _cash_cache["cash"] = {"matched": [], "unmatched": [], "partial": []}
         _cash_cache["computed_at"] = time.time()
+        _db_save("cash", _cash_cache["cash"], _cash_cache["computed_at"], _cash_cache["error"])
     return _cash_cache["cash"], _cash_cache["error"]
 
 
@@ -411,6 +538,11 @@ def compute_deal_reconciliation() -> list[dict]:
 
 
 def get_deal_reconciliation(force_refresh: bool = False) -> tuple[list[dict], str | None]:
+    if _deal_recon_cache["data"] is None and not force_refresh:
+        data, computed_at, error = _db_load("deal_reconciliation")
+        if data is not None:
+            _deal_recon_cache["data"], _deal_recon_cache["computed_at"], _deal_recon_cache["error"] = data, computed_at, error
+
     stale = time.time() - _deal_recon_cache["computed_at"] > _CACHE_TTL_SECONDS
     if force_refresh or _deal_recon_cache["data"] is None or stale:
         try:
@@ -421,20 +553,24 @@ def get_deal_reconciliation(force_refresh: bool = False) -> tuple[list[dict], st
             if _deal_recon_cache["data"] is None:
                 _deal_recon_cache["data"] = []
         _deal_recon_cache["computed_at"] = time.time()
+        _db_save("deal_reconciliation", _deal_recon_cache["data"], _deal_recon_cache["computed_at"], _deal_recon_cache["error"])
     return _deal_recon_cache["data"], _deal_recon_cache["error"]
 
 
-def compute_collections() -> list[dict]:
-    """Real overdue invoices from the QuickBooks sandbox, each paired with a
-    draft dunning email built from real invoice/customer data.
+def _real_outstanding_invoices() -> list[dict]:
+    """Real QuickBooks invoices with a positive balance, scoped to
+    customers matching a real HubSpot deal (same scoping as compute_cash()
+    -- otherwise QBO's own unrelated sample invoices would show up here
+    too), each with a real due date and 'dpd' (days overdue, signed --
+    negative means not yet due, 0 is due today) computed against today's
+    actual date.
 
-    Nothing here is ever sent automatically -- this only computes the list
-    and the draft text. An explicit POST to /api/collections/<id>/send,
-    itself only ever triggered by a person clicking Send in the UI, is
-    what actually calls the Gmail client.
-
-    An invoice with no BillEmail on file gets email=None -- shown as an
-    honest gap in the UI, never a guessed or fabricated address.
+    No window filtering here -- that's each caller's own concern.
+    compute_collections() only wants invoices within 7 days of the
+    deadline through however overdue (its reminder-cadence window);
+    compute_ar_aging() (ar_aging_report.py) wants every outstanding
+    invoice, including ones not due for months, since an AR aging report
+    has to account for all of it, not just what's near-due.
     """
     from datetime import date
 
@@ -442,10 +578,15 @@ def compute_collections() -> list[dict]:
 
     settings = load_settings()
     if settings.qbo_mode != "live":
-        raise RuntimeError("QBO_MODE is not 'live' -- set it in .env to fetch real collections data")
+        raise RuntimeError("QBO_MODE is not 'live' -- set it in .env to fetch real invoice data")
+
+    deals, _ = get_deals()
+    real_customer_keys = {_normalize_customer_name(d.get("c", "")) for d in deals if d.get("real")}
+    real_customer_keys.discard("")
 
     client = QboClient(settings)
-    invoices = client.list_invoices(limit=50)
+    all_invoices = client.list_invoices(limit=50)
+    invoices = [i for i in all_invoices if _normalize_customer_name(i.get("CustomerRef", {}).get("name", "")) in real_customer_keys]
     today = date.today()
 
     out = []
@@ -460,27 +601,80 @@ def compute_collections() -> list[dict]:
             due_date = date.fromisoformat(due_raw)
         except ValueError:
             continue
-        days_overdue = (today - due_date).days
-        if days_overdue < 1:
-            continue  # due today or in the future -- not overdue yet
+        out.append({
+            "qboId": inv.get("Id"),
+            "customer": inv.get("CustomerRef", {}).get("name") or "—",
+            "docnum": inv.get("DocNumber", "—"),
+            "balance": balance,
+            "dueDate": due_date,
+            "dpd": (today - due_date).days,
+            "email": (inv.get("BillEmail") or {}).get("Address"),
+        })
+    return out
 
-        stage = _dunning_stage(days_overdue)
-        customer = inv.get("CustomerRef", {}).get("name") or "—"
-        docnum = inv.get("DocNumber", "—")
-        email = (inv.get("BillEmail") or {}).get("Address")
 
-        subject = f"Payment reminder: Invoice #{docnum} — {days_overdue} days overdue"
-        body = (
-            f"Hi {customer},\n\n"
-            f"This is a reminder that Invoice #{docnum} for ${balance:,.2f} was due on "
-            f"{due_date.isoformat()} and remains unpaid ({days_overdue} days overdue).\n\n"
-            "Please remit payment at your earliest convenience. If you've already sent "
-            "payment, please disregard this message.\n\n"
-            "Thank you,\nRally, Inc."
-        )
+def compute_collections() -> list[dict]:
+    """Real overdue invoices from the QuickBooks sandbox, each paired with a
+    draft dunning email built from real invoice/customer data.
+
+    Nothing here is ever sent automatically -- this only computes the list
+    and the draft text. An explicit POST to /api/collections/<id>/send,
+    itself only ever triggered by a person clicking Send in the UI, is
+    what actually calls the Gmail client. (run_reminder_cycle() is the one
+    exception -- also only ever reached via an explicit person-triggered
+    POST, just a batch one instead of a per-row Send click.)
+
+    An invoice with no BillEmail on file gets email=None -- shown as an
+    honest gap in the UI, never a guessed or fabricated address.
+
+    Window covers -7 (7 days before the deadline) through however far
+    overdue an invoice actually is, matching the 3-stage reminder cadence
+    in _reminder_stage() -- "dpd" (days overdue) is signed: negative means
+    still upcoming, 0 is due today, positive is overdue.
+    """
+    out = []
+    for r in _real_outstanding_invoices():
+        days_overdue = r["dpd"]
+        if days_overdue < -7:
+            continue  # more than 7 days before the deadline -- not due for a reminder yet
+
+        stage = _dunning_stage(max(days_overdue, 0))
+        qbo_id, customer, docnum, balance, due_date, email = r["qboId"], r["customer"], r["docnum"], r["balance"], r["dueDate"], r["email"]
+
+        if days_overdue < 0:
+            days_until = -days_overdue
+            subject = f"Upcoming invoice due soon: #{docnum} — due in {days_until} day{'s' if days_until != 1 else ''}"
+            body = (
+                f"Hi {customer},\n\n"
+                f"This is a heads-up that Invoice #{docnum} for ${balance:,.2f} is due on "
+                f"{due_date.isoformat()} ({days_until} day{'s' if days_until != 1 else ''} from now).\n\n"
+                "No action needed if payment is already scheduled. Please reach out if you have "
+                "any questions.\n\n"
+                "Thank you,\nRally, Inc."
+            )
+        elif days_overdue == 0:
+            subject = f"Invoice due today: #{docnum}"
+            body = (
+                f"Hi {customer},\n\n"
+                f"This is a reminder that Invoice #{docnum} for ${balance:,.2f} is due today, "
+                f"{due_date.isoformat()}.\n\n"
+                "Please remit payment at your earliest convenience. If you've already sent "
+                "payment, please disregard this message.\n\n"
+                "Thank you,\nRally, Inc."
+            )
+        else:
+            subject = f"Payment reminder: Invoice #{docnum} — {days_overdue} days overdue"
+            body = (
+                f"Hi {customer},\n\n"
+                f"This is a reminder that Invoice #{docnum} for ${balance:,.2f} was due on "
+                f"{due_date.isoformat()} and remains unpaid ({days_overdue} days overdue).\n\n"
+                "Please remit payment at your earliest convenience. If you've already sent "
+                "payment, please disregard this message.\n\n"
+                "Thank you,\nRally, Inc."
+            )
 
         out.append({
-            "id": f"COLL-{inv.get('Id')}",
+            "id": f"COLL-{qbo_id}",
             "inv": docnum,
             "c": customer,
             "amt": round(balance, 2),
@@ -500,6 +694,15 @@ def compute_collections() -> list[dict]:
 
 
 def get_collections(force_refresh: bool = False) -> tuple[list[dict], str | None]:
+    # Loading the durable snapshot first (when cold) means the sent/sentAt
+    # preservation below also survives a restart, not just a same-process
+    # recompute -- a restart used to forget which emails had already gone
+    # out, risking a real duplicate send.
+    if _collections_cache["collections"] is None and not force_refresh:
+        data, computed_at, error = _db_load("collections")
+        if data is not None:
+            _collections_cache["collections"], _collections_cache["computed_at"], _collections_cache["error"] = data, computed_at, error
+
     stale = time.time() - _collections_cache["computed_at"] > _CACHE_TTL_SECONDS
     if force_refresh or _collections_cache["collections"] is None or stale:
         try:
@@ -521,7 +724,112 @@ def get_collections(force_refresh: bool = False) -> tuple[list[dict], str | None
             if _collections_cache["collections"] is None:
                 _collections_cache["collections"] = []
         _collections_cache["computed_at"] = time.time()
+        _db_save("collections", _collections_cache["collections"], _collections_cache["computed_at"], _collections_cache["error"])
     return _collections_cache["collections"], _collections_cache["error"]
+
+
+def compute_due_reminders(collections: list[dict], state: dict) -> list[dict]:
+    """Which real collections rows need an automated reminder sent right
+    now: real invoice, at one of the 3 cadence checkpoints (7 days before
+    the deadline, the day of the deadline, or 14 days after), and that
+    specific stage hasn't already been recorded as sent in
+    reminder_state.json.
+
+    "final" (14 days after) gets an escalated subject/body built here
+    rather than reusing the row's own draftSubject/draftBody as-is, so it
+    reads more urgent than the pre_due/due_today stages. Those two reuse
+    compute_collections()'s own draft as-is -- it's already worded
+    correctly for "upcoming" vs "due today" there.
+    """
+    due = []
+    for row in collections:
+        if not row.get("real"):
+            continue
+        stage = _reminder_stage(row["dpd"])
+        if not stage:
+            continue
+        if state.get(row["id"], {}).get(stage):
+            continue  # this stage already sent for this invoice -- never resend it
+        if stage == "final":
+            subject = f"FINAL NOTICE: Invoice #{row['inv']} — {row['dpd']} days overdue"
+            body = (
+                f"Hi {row['c']},\n\n"
+                f"This is a final reminder that Invoice #{row['inv']} for ${row['amt']:,.2f} was due on "
+                f"{row['dueDate']} and remains unpaid ({row['dpd']} days overdue). Earlier reminders were "
+                "already sent.\n\n"
+                "Please remit payment immediately to avoid further collections action. If you've already "
+                "sent payment, please disregard this message.\n\n"
+                "Thank you,\nRally, Inc."
+            )
+        else:
+            subject, body = row["draftSubject"], row["draftBody"]
+        due.append({**row, "reminderStage": stage, "subject": subject, "body": body})
+    return due
+
+
+def run_reminder_cycle() -> dict:
+    """The one reminder-sending system for this app: sends every real
+    reminder currently due (7 days before deadline / day of deadline / 14
+    days after) in a single batch, instead of a person clicking Send on
+    each one individually. Only ever reached via an explicit POST from the
+    UI's own "Run reminder cycle" button (or `ar_aging_report.py --send`)
+    -- there is still no background scheduler anywhere in this codebase.
+
+    (This used to be two separate systems -- this -7/0/+14 cadence, plus a
+    simpler "> N days overdue, no dedup" one with its own override-email
+    test mode. Merged into this one on request; the override behavior
+    below is what's left of the second one.)
+
+    Per settings.outstanding_reminder_override_email (default
+    capstnprjt@gmail.com), every email can be redirected to a fixed test
+    address instead of the customer's real BillEmail -- set
+    OUTSTANDING_REMINDER_OVERRIDE_EMAIL=real in .env to send to each
+    invoice's actual billing email instead (this is already the current
+    setting). The overridden email body is prefixed with who it was
+    actually meant for, so a redirected test inbox stays legible.
+
+    reminder_state.json is the only thing that has to survive a restart for
+    this to be safe -- without it, a restart would forget a stage was
+    already sent and could email the same customer twice.
+    """
+    settings = load_settings()
+    if settings.gmail_mode != "live":
+        raise RuntimeError("GMAIL_MODE is not 'live' -- set it in .env to send real reminder email")
+
+    collections, coll_error = get_collections()
+    state = _load_reminder_state()
+    due = compute_due_reminders(collections, state)
+
+    from integrations.gmail import GmailClient
+
+    client = GmailClient(settings)
+    override = settings.outstanding_reminder_override_email
+    sent, failed, skipped = [], [], []
+    for row in due:
+        real_to = (row.get("email") or "").strip()
+        to = override or real_to
+        if not to:
+            skipped.append({"id": row["id"], "c": row["c"], "reason": "no billing email on file and no override configured"})
+            continue
+        body = row["body"]
+        if override:
+            body = f"[TEST MODE — intended recipient: {row['c']} <{real_to or 'no email on file'}>]\n\n{body}"
+        try:
+            message_id = client.send_email(to, row["subject"], body)
+        except Exception as exc:
+            failed.append({"id": row["id"], "c": row["c"], "reason": str(exc)})
+            continue
+        state.setdefault(row["id"], {})[row["reminderStage"]] = datetime.now().isoformat()
+        sent.append({"id": row["id"], "c": row["c"], "stage": row["reminderStage"], "to": to, "intendedFor": real_to or None, "messageId": message_id})
+
+    if sent:
+        _save_reminder_state(state)
+
+    return {
+        "checked": len(collections), "due": len(due),
+        "sent": sent, "failed": failed, "skipped": skipped,
+        "override": override, "collectionsError": coll_error,
+    }
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -779,6 +1087,15 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/invoices/send":
             self._send_invoice_email(self._read_json_body())
+            return
+
+        if path == "/api/collections/reminders/run":
+            try:
+                result = run_reminder_cycle()
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)})
+                return
+            self._send_json({"ok": True, **result})
             return
 
         self.send_response(404)

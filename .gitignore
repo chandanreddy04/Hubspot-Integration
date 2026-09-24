@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 .env
+ui/reminder_state.json
+rally_state.db

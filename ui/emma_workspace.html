@@ -973,7 +973,10 @@ select.f,input.f{padding:6px 10px;border:1px solid var(--border);border-radius:6
         <div class="kpi"><div class="l">Disputes paused</div><div class="v" id="collKpiPaused">—</div><div class="meta" id="collKpiPausedMeta">—</div></div>
       </div>
       <div class="section">
-        <div class="sh"><h3>Collections queue · dunning stages</h3></div>
+        <div class="sh">
+          <h3>Collections queue · dunning stages</h3>
+          <div class="right"><button class="csv-btn" id="runReminderCycleBtn" onclick="runReminderCycle()">Run reminder cycle</button></div>
+        </div>
         <div class="body">
           <div class="kanban" id="kanban-collections"></div>
         </div>
@@ -1610,7 +1613,12 @@ function getCollections(){
   if(currentClient==='trade')   return TRADE_COLLECTIONS;
   if(currentClient==='halcyon') return HALCYON_COLLECTIONS;
   if(currentClient==='all')     return COLLECTIONS.concat(TRADE_COLLECTIONS, HALCYON_COLLECTIONS);
-  return COLLECTIONS;
+  // Real customers only, same as Cash Application -- COLLECTIONS still
+  // carries its original demo rows underneath the real ones
+  // loadRealCollections() unshifts in, but the Collections queue should
+  // only ever show invoices matched to a real HubSpot deal, not QBO's
+  // unrelated sample data or this page's own pre-existing demo cards.
+  return COLLECTIONS.filter(c=>c.real);
 }
 function getIncidents(){
   if(currentClient==='trade')   return TRADE_INCIDENTS;
@@ -2499,7 +2507,7 @@ function _updateCollectionsKpis(source){
   const paused = source.filter(c=>c.paused);
 
   totalEl.textContent = _moneyAbbrev(total);
-  totalMetaEl.textContent = source.length + ' invoice' + (source.length===1?'':'s') + ' past due';
+  totalMetaEl.textContent = source.length + ' invoice' + (source.length===1?'':'s') + ' in the reminder window';
   avgEl.textContent = avgDpd;
   avgMetaEl.textContent = over45 + ' over 45 days';
   pausedEl.textContent = paused.length;
@@ -5108,6 +5116,45 @@ async function loadRealCollections(refresh){
     }
   }catch(e){
     toast('warn', 'Could not reach the live collections API — is server.py running? (' + e.message + ')');
+  }
+}
+
+// Phase 4: one explicit click sends every real reminder currently due
+// (7 days before deadline / day of deadline / 14 days after) in one batch
+// -- calls POST /api/collections/reminders/run, which is the only place
+// that ever auto-sends real email without a per-row Send click, and only
+// because this button is that person's own explicit trigger for the
+// whole batch.
+async function runReminderCycle(){
+  const btn = document.getElementById('runReminderCycleBtn');
+  if(btn){ btn.disabled = true; btn.textContent = 'Running…'; }
+  try{
+    const res = await fetch('/api/collections/reminders/run', {method:'POST'});
+    const payload = await res.json();
+    if(!res.ok || !payload.ok){
+      toast('warn', 'Reminder cycle failed: ' + (payload.error || ('HTTP ' + res.status)));
+      return;
+    }
+    const {checked, due, sent, failed, skipped, collectionsError} = payload;
+    if(!checked && collectionsError){
+      // 0 checked doesn't always mean "nothing overdue" -- it can mean the
+      // underlying QuickBooks pull itself failed (e.g. an expired OAuth
+      // token) and get_collections() fell back to an empty list. Surface
+      // that instead of silently reporting a clean "none due yet".
+      toast('warn', 'Reminder cycle ran, but the underlying QuickBooks pull failed: ' + collectionsError);
+    } else if(!due){
+      toast('success', 'Reminder cycle ran · checked ' + checked + ' real invoice(s) in the -7/0/+14 day window · none due yet');
+    } else {
+      const parts = [sent.length + ' sent'];
+      if(failed.length) parts.push(failed.length + ' failed');
+      if(skipped.length) parts.push(skipped.length + ' skipped (no billing email on file)');
+      toast(failed.length ? 'warn' : 'success', 'Reminder cycle · ' + parts.join(', ') + ' of ' + due + ' due');
+    }
+    await loadRealCollections(true);
+  }catch(e){
+    toast('warn', 'Could not reach the reminder cycle API — is server.py running? (' + e.message + ')');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Run reminder cycle'; }
   }
 }
 
