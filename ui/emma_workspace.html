@@ -1613,7 +1613,12 @@ function getCollections(){
   if(currentClient==='trade')   return TRADE_COLLECTIONS;
   if(currentClient==='halcyon') return HALCYON_COLLECTIONS;
   if(currentClient==='all')     return COLLECTIONS.concat(TRADE_COLLECTIONS, HALCYON_COLLECTIONS);
-  return COLLECTIONS;
+  // Real customers only, same as Cash Application -- COLLECTIONS still
+  // carries its original demo rows underneath the real ones
+  // loadRealCollections() unshifts in, but the Collections queue should
+  // only ever show invoices matched to a real HubSpot deal, not QBO's
+  // unrelated sample data or this page's own pre-existing demo cards.
+  return COLLECTIONS.filter(c=>c.real);
 }
 function getIncidents(){
   if(currentClient==='trade')   return TRADE_INCIDENTS;
