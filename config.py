@@ -75,10 +75,9 @@ class Settings:
     gmail_client_secret: str | None = None
     gmail_refresh_token: str | None = None
     gmail_sender_email: str | None = None
-    overdue_threshold_days: int = 7
-    # Every outstanding-invoice batch email goes here instead of the real
-    # customer address until this is turned off -- set to "real" in .env to
-    # start sending to each invoice's actual BillEmail instead.
+    # Every automated reminder email (the -7/0/+14 cadence in run_reminder_cycle())
+    # goes here instead of the real customer address until this is turned off --
+    # set to "real" in .env to start sending to each invoice's actual BillEmail.
     outstanding_reminder_override_email: str | None = "capstnprjt@gmail.com"
 
 
@@ -131,11 +130,6 @@ def load_settings() -> Settings:
                 "GMAIL_REFRESH_TOKEN, and GMAIL_SENDER_EMAIL all set"
             )
 
-    try:
-        overdue_threshold_days = int(_env("OVERDUE_THRESHOLD_DAYS", "7"))
-    except ValueError:
-        raise RuntimeError("OVERDUE_THRESHOLD_DAYS must be an integer") from None
-
     override_raw = (_env("OUTSTANDING_REMINDER_OVERRIDE_EMAIL", "capstnprjt@gmail.com") or "").strip()
     outstanding_reminder_override_email = None if override_raw.lower() == "real" else override_raw
 
@@ -149,6 +143,5 @@ def load_settings() -> Settings:
         qbo_refresh_token=qbo_refresh_token, qbo_access_token=qbo_access_token,
         gmail_mode=gmail_mode, gmail_client_id=gmail_client_id, gmail_client_secret=gmail_client_secret,
         gmail_refresh_token=gmail_refresh_token, gmail_sender_email=gmail_sender_email,
-        overdue_threshold_days=overdue_threshold_days,
         outstanding_reminder_override_email=outstanding_reminder_override_email,
     )

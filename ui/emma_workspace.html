@@ -975,10 +975,7 @@ select.f,input.f{padding:6px 10px;border:1px solid var(--border);border-radius:6
       <div class="section">
         <div class="sh">
           <h3>Collections queue · dunning stages</h3>
-          <div class="right">
-            <button class="csv-btn" id="sendArAgingRemindersBtn" onclick="sendArAgingReminders()">Send AR aging reminders</button>
-            <button class="csv-btn" id="runReminderCycleBtn" onclick="runReminderCycle()">Run reminder cycle</button>
-          </div>
+          <div class="right"><button class="csv-btn" id="runReminderCycleBtn" onclick="runReminderCycle()">Run reminder cycle</button></div>
         </div>
         <div class="body">
           <div class="kanban" id="kanban-collections"></div>
@@ -5145,7 +5142,7 @@ async function runReminderCycle(){
     } else {
       const parts = [sent.length + ' sent'];
       if(failed.length) parts.push(failed.length + ' failed');
-      if(skipped.length) parts.push(skipped.length + ' skipped (no email on file)');
+      if(skipped.length) parts.push(skipped.length + ' skipped (no billing email on file)');
       toast(failed.length ? 'warn' : 'success', 'Reminder cycle · ' + parts.join(', ') + ' of ' + due + ' due');
     }
     await loadRealCollections(true);
@@ -5153,43 +5150,6 @@ async function runReminderCycle(){
     toast('warn', 'Could not reach the reminder cycle API — is server.py running? (' + e.message + ')');
   }finally{
     if(btn){ btn.disabled = false; btn.textContent = 'Run reminder cycle'; }
-  }
-}
-
-// AR aging batch reminder: sends a real reminder email for every real
-// invoice over config.overdue_threshold_days overdue via POST
-// /api/invoices/outstanding/send-reminders -- the UI equivalent of
-// `python ar_aging_report.py --send`. Unlike runReminderCycle() above,
-// this has no per-invoice dedup of its own (by design, same as the CLI
-// script), so clicking it again while an invoice is still over the
-// threshold emails it again -- hence the confirm before firing.
-async function sendArAgingReminders(){
-  if(!confirm('Send a real reminder email to every outstanding invoice over the configured overdue threshold?\n\nThis has no duplicate-send protection -- running it again later will re-email anything still overdue.')) return;
-  const btn = document.getElementById('sendArAgingRemindersBtn');
-  if(btn){ btn.disabled = true; btn.textContent = 'Sending…'; }
-  try{
-    const res = await fetch('/api/invoices/outstanding/send-reminders', {method:'POST'});
-    const payload = await res.json();
-    if(!res.ok || !payload.ok){
-      toast('warn', 'AR aging reminders failed: ' + (payload.error || ('HTTP ' + res.status)));
-      return;
-    }
-    const {thresholdDays, checked, sent, failed, override, collectionsError} = payload;
-    if(!checked && collectionsError){
-      toast('warn', 'AR aging reminders ran, but the underlying QuickBooks pull failed: ' + collectionsError);
-    } else if(!checked){
-      toast('success', 'No real invoices currently more than ' + thresholdDays + ' day(s) overdue.');
-    } else {
-      const parts = [sent.length + ' sent'];
-      if(failed.length) parts.push(failed.length + ' failed');
-      const dest = override ? ' to ' + override + ' (test override)' : ' to real QuickBooks billing emails';
-      toast(failed.length ? 'warn' : 'success', 'AR aging reminders · ' + parts.join(', ') + dest + ' · ' + checked + ' over ' + thresholdDays + ' day(s) overdue');
-    }
-    await loadRealCollections(true);
-  }catch(e){
-    toast('warn', 'Could not reach the AR aging reminders API — is server.py running? (' + e.message + ')');
-  }finally{
-    if(btn){ btn.disabled = false; btn.textContent = 'Send AR aging reminders'; }
   }
 }
 

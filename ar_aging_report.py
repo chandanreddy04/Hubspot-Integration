@@ -15,15 +15,16 @@ querying QuickBooks a third, separate way.
 Usage:
     python ar_aging_report.py            # human-readable report
     python ar_aging_report.py --json     # machine-readable, for piping elsewhere
-    python ar_aging_report.py --send     # also sends a real reminder email per invoice over
-                                          # config.overdue_threshold_days (needs GMAIL_MODE=live)
+    python ar_aging_report.py --send     # also runs the reminder cycle (needs GMAIL_MODE=live)
 
---send reuses the existing send_outstanding_reminders() (same one the
-Collections page's outstanding-invoices batch already calls) rather than
-re-implementing sending here -- one source of truth for what an actual
-send does (override-address redirect, draft text, dedup-free single-run
-semantics). This report's own aging buckets are unrelated and unaffected
-by the threshold --send uses.
+--send reuses run_reminder_cycle() -- the same -7/0/+14-day cadence the
+Collections page's "Run reminder cycle" button calls, with the same
+per-invoice-per-stage dedup (rally_state.db), so running this repeatedly
+never double-emails a stage that's already gone out. This used to call a
+separate, simpler ">N days overdue, no dedup" sender; merged into one
+system on request. This report's own unbounded aging buckets are
+unrelated to and unaffected by that cadence -- the report always shows
+every outstanding invoice regardless of what --send would act on.
 """
 
 from __future__ import annotations
@@ -36,7 +37,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT / "ui"))
 
-from server import _real_outstanding_invoices, send_outstanding_reminders  # noqa: E402  (path setup must run first)
+from server import _real_outstanding_invoices, run_reminder_cycle  # noqa: E402  (path setup must run first)
 from config import load_settings  # noqa: E402
 
 # Standard AR aging buckets. "Current" covers anything not yet past due
@@ -104,20 +105,26 @@ def _send_reminders() -> None:
         sys.exit(1)
 
     override = settings.outstanding_reminder_override_email
-    print(f"\nSending reminders for invoices over {settings.overdue_threshold_days} day(s) overdue...")
+    print("\nRunning the -7/0/+14-day reminder cycle...")
     print(f"Recipient override: {override or '(none -- sending to real QuickBooks billing emails)'}")
 
     try:
-        result = send_outstanding_reminders()
+        result = run_reminder_cycle()
     except Exception as exc:
         print(f"Could not send reminders: {exc}", file=sys.stderr)
         sys.exit(1)
 
+    if result["collectionsError"] and not result["checked"]:
+        print(f"Warning -- underlying QuickBooks pull failed: {result['collectionsError']}", file=sys.stderr)
+
     for row in result["sent"]:
-        print(f"  sent   -> {row['c']}  (to {row['to']}, message {row['messageId']})")
+        print(f"  sent    -> {row['c']}  (stage {row['stage']}, to {row['to']}, message {row['messageId']})")
     for row in result["failed"]:
-        print(f"  FAILED -> {row['c']}: {row['reason']}")
-    print(f"\n{len(result['sent'])} sent, {len(result['failed'])} failed, out of {result['checked']} checked.")
+        print(f"  FAILED  -> {row['c']}: {row['reason']}")
+    for row in result["skipped"]:
+        print(f"  skipped -> {row['c']}: {row['reason']}")
+    print(f"\n{len(result['sent'])} sent, {len(result['failed'])} failed, {len(result['skipped'])} skipped, "
+          f"{result['due']} due out of {result['checked']} checked.")
 
 
 def main() -> None:
