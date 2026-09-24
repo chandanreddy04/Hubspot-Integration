@@ -557,28 +557,20 @@ def get_deal_reconciliation(force_refresh: bool = False) -> tuple[list[dict], st
     return _deal_recon_cache["data"], _deal_recon_cache["error"]
 
 
-def compute_collections() -> list[dict]:
-    """Real overdue invoices from the QuickBooks sandbox, each paired with a
-    draft dunning email built from real invoice/customer data.
+def _real_outstanding_invoices() -> list[dict]:
+    """Real QuickBooks invoices with a positive balance, scoped to
+    customers matching a real HubSpot deal (same scoping as compute_cash()
+    -- otherwise QBO's own unrelated sample invoices would show up here
+    too), each with a real due date and 'dpd' (days overdue, signed --
+    negative means not yet due, 0 is due today) computed against today's
+    actual date.
 
-    Nothing here is ever sent automatically -- this only computes the list
-    and the draft text. An explicit POST to /api/collections/<id>/send,
-    itself only ever triggered by a person clicking Send in the UI, is
-    what actually calls the Gmail client. (run_reminder_cycle() is the one
-    exception -- also only ever reached via an explicit person-triggered
-    POST, just a batch one instead of a per-row Send click.)
-
-    An invoice with no BillEmail on file gets email=None -- shown as an
-    honest gap in the UI, never a guessed or fabricated address.
-
-    Scoped to customers that match a real HubSpot deal, same as
-    compute_cash() -- otherwise QBO's own unrelated sample invoices would
-    show up as "overdue" here too.
-
-    Window covers -7 (7 days before the deadline) through however far
-    overdue an invoice actually is, matching the 3-stage reminder cadence
-    in _reminder_stage() -- "dpd" (days overdue) is signed: negative means
-    still upcoming, 0 is due today, positive is overdue.
+    No window filtering here -- that's each caller's own concern.
+    compute_collections() only wants invoices within 7 days of the
+    deadline through however overdue (its reminder-cadence window);
+    compute_ar_aging() (ar_aging_report.py) wants every outstanding
+    invoice, including ones not due for months, since an AR aging report
+    has to account for all of it, not just what's near-due.
     """
     from datetime import date
 
@@ -586,7 +578,7 @@ def compute_collections() -> list[dict]:
 
     settings = load_settings()
     if settings.qbo_mode != "live":
-        raise RuntimeError("QBO_MODE is not 'live' -- set it in .env to fetch real collections data")
+        raise RuntimeError("QBO_MODE is not 'live' -- set it in .env to fetch real invoice data")
 
     deals, _ = get_deals()
     real_customer_keys = {_normalize_customer_name(d.get("c", "")) for d in deals if d.get("real")}
@@ -609,14 +601,45 @@ def compute_collections() -> list[dict]:
             due_date = date.fromisoformat(due_raw)
         except ValueError:
             continue
-        days_overdue = (today - due_date).days
+        out.append({
+            "qboId": inv.get("Id"),
+            "customer": inv.get("CustomerRef", {}).get("name") or "—",
+            "docnum": inv.get("DocNumber", "—"),
+            "balance": balance,
+            "dueDate": due_date,
+            "dpd": (today - due_date).days,
+            "email": (inv.get("BillEmail") or {}).get("Address"),
+        })
+    return out
+
+
+def compute_collections() -> list[dict]:
+    """Real overdue invoices from the QuickBooks sandbox, each paired with a
+    draft dunning email built from real invoice/customer data.
+
+    Nothing here is ever sent automatically -- this only computes the list
+    and the draft text. An explicit POST to /api/collections/<id>/send,
+    itself only ever triggered by a person clicking Send in the UI, is
+    what actually calls the Gmail client. (run_reminder_cycle() is the one
+    exception -- also only ever reached via an explicit person-triggered
+    POST, just a batch one instead of a per-row Send click.)
+
+    An invoice with no BillEmail on file gets email=None -- shown as an
+    honest gap in the UI, never a guessed or fabricated address.
+
+    Window covers -7 (7 days before the deadline) through however far
+    overdue an invoice actually is, matching the 3-stage reminder cadence
+    in _reminder_stage() -- "dpd" (days overdue) is signed: negative means
+    still upcoming, 0 is due today, positive is overdue.
+    """
+    out = []
+    for r in _real_outstanding_invoices():
+        days_overdue = r["dpd"]
         if days_overdue < -7:
             continue  # more than 7 days before the deadline -- not due for a reminder yet
 
         stage = _dunning_stage(max(days_overdue, 0))
-        customer = inv.get("CustomerRef", {}).get("name") or "—"
-        docnum = inv.get("DocNumber", "—")
-        email = (inv.get("BillEmail") or {}).get("Address")
+        qbo_id, customer, docnum, balance, due_date, email = r["qboId"], r["customer"], r["docnum"], r["balance"], r["dueDate"], r["email"]
 
         if days_overdue < 0:
             days_until = -days_overdue
@@ -651,7 +674,7 @@ def compute_collections() -> list[dict]:
             )
 
         out.append({
-            "id": f"COLL-{inv.get('Id')}",
+            "id": f"COLL-{qbo_id}",
             "inv": docnum,
             "c": customer,
             "amt": round(balance, 2),
